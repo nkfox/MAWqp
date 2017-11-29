@@ -71,7 +71,7 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 
 	for (int k = 0; k < mm1; k++)
 		*(M22 + x[k] * SIGMA + x[k + 1]) = m2m2 - k;
-	mem_fill(SIGMA2, SIGMA4, M22);
+	mem_fill(SIGMA2, SIGMA3, M22);
 
 	*(M22 + x[0] * SIGMA2 + x[mm1] * SIGMA) = mm1;
 	mem_fill(1, SIGMA, M22 + x[0] * SIGMA2 + x[mm1] * SIGMA);
@@ -110,7 +110,7 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 
 // The MAW23 algorithm
 int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
-	if (m<3) return -1;
+	if (m < 3) return -1;
 	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, mm3 = m - 3, mp2 = m + 2, k, r, pos, count = 0;
@@ -129,26 +129,22 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 	mem_fill(1, SIGMA6, M23);
 
 	*(M23 + x[0]) = m2m1;
-	mem_fill(SIGMA, SIGMA6, M23);
+	mem_fill(SIGMA, SIGMA2, M23);
 
 	*(M23 + x[0] * SIGMA + x[1]) = m2m2;
-	mem_fill(SIGMA2, SIGMA6, M23);
+	mem_fill(SIGMA2, SIGMA3, M23);
 
 	for (int k = 0; k < mm2; k++)
 		*(M23 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m2m3 - k;
-	mem_fill(SIGMA3, SIGMA6, M23);
+	mem_fill(SIGMA3, SIGMA4, M23);
 
 	*(M23 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA) = mm1;
 	mem_fill(1, SIGMA, M23 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA);
-	mem_fill(SIGMA4, SIGMA6, M23);
+	mem_fill(SIGMA4, SIGMA5, M23);
 
-	/**(M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2) = mm2;
-	mem_fill(1, SIGMA, M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2);
-	mem_fill(SIGMA6, SIGMA6, M23);*/
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-		*(M23 + a * SIGMA5 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2 + b * SIGMA + c) = mm2;
+	*(M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2) = mm2;
+	mem_fill(1, SIGMA2, M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2);
+	mem_fill(SIGMA5, SIGMA6, M23);
 
 	for (int k = 0; k < mm2; k++) {
 		*(M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3) = mm3 - k;
@@ -183,7 +179,7 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 
 // The MAW24 algorithm
 int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
-	if (m<4) return -1;
+	if (m < 4) return -1;
 	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm2 = m - 2, mm1 = m - 1, mm3 = m - 3, mm4 = m - 4,
@@ -204,53 +200,34 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 	mem_fill(1, SIGMA8, M24);
 
 	*(M24 + x[0]) = m2m1;
-	mem_fill(SIGMA, SIGMA8, M24);
+	mem_fill(SIGMA, SIGMA2, M24);
 
 	*(M24 + x[0] * SIGMA + x[1]) = m2m2;
-	mem_fill(SIGMA2, SIGMA8, M24);
+	mem_fill(SIGMA2, SIGMA3, M24);
 
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-	for (int e = 0; e < SIGMA; e++)
-		*(M24 + a * SIGMA7 + b * SIGMA6 + c * SIGMA5 + d * SIGMA4 + e * SIGMA3 + x[0] * SIGMA2 + x[1] * SIGMA + x[2]) = m2m3;
+	*(M24 + x[0] * SIGMA2 + x[1] * SIGMA + x[2]) = m2m3;
+	mem_fill(SIGMA3, SIGMA4, M24);
 
 	for (int k = 0; k < mm3; k++)
 		*(M24 + x[k] * SIGMA3 + x[k + 1] * SIGMA2 + x[k + 2] * SIGMA + x[k + 3]) = m2m4 - k;
-	mem_fill(SIGMA4, SIGMA8, M24);
+	mem_fill(SIGMA4, SIGMA5, M24);
 
-	/**(M24 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA) = mm1;
-	mem_fill(1, SIGMA, M24 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA);
-	mem_fill(SIGMA4, SIGMA6, M24);*/
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-		*(M24 + a * SIGMA7 + b * SIGMA6 + c * SIGMA5 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA + d) = mm1;
+	*(M24 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA) = mm1;
+	mem_fill(1, SIGMA, M24 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA);
+	mem_fill(SIGMA5, SIGMA6, M24);
 
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-		*(M24 + a * SIGMA7 + b * SIGMA6 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2 + c * SIGMA + d) = mm2;
+	*(M24 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2) = mm2;
+	mem_fill(1, SIGMA2, M24 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2);
+	mem_fill(SIGMA6, SIGMA7, M24);
 
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-		*(M24 + a * SIGMA7 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3 + b * SIGMA2 + c * SIGMA + d) = mm3;
+	*(M24 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3) = mm3;
+	mem_fill(1, SIGMA3, M24 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3);
+	mem_fill(SIGMA7, SIGMA8, M24);
 
-	/*for (int k = 0; k < mm3; k++) {
-	*(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4) = m - k - 3;
-	mem_fill(1, SIGMA, M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4);
-	}*/
-	for (int k = 0; k < mm3; k++)
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-		*(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4 + a * SIGMA3 + b * SIGMA2 + c * SIGMA + d) = mm4 - k;
+	for (int k = 0; k < mm3; k++) {
+		*(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4) = mm4 - k;
+		mem_fill(1, SIGMA4, M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4);
+	}
 
 	//Search
 	pos = mm4;
@@ -300,34 +277,25 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 	mem_fill(1, SIGMA6, M32);
 
 	*(M32 + x[0]) = m3m1;
-	mem_fill(SIGMA, SIGMA6, M32);
+	mem_fill(SIGMA, SIGMA2, M32);
 
 	for (int k = 0; k < mm1; k++)
 		*(M32 + x[k] * SIGMA + x[k + 1]) = m3m2 - k;
-	mem_fill(SIGMA2, SIGMA6, M32);
+	mem_fill(SIGMA2, SIGMA3, M32);
 
 	*(M32 + x[0] * SIGMA2 + x[mm1] * SIGMA) = m2m1;
 	mem_fill(1, SIGMA, M32 + x[0] * SIGMA2 + x[mm1] * SIGMA);
-	mem_fill(SIGMA3, SIGMA6, M32);
+	mem_fill(SIGMA3, SIGMA4, M32);
 
-	/*for (int k = 0; k<mm1; k++)
-	*(M32 + x[k] * SIGMA + x[k + 1]) = m2 - k - 2;
-	mem_fill(SIGMA2, SIGMA4, M32);*/
-	for (int k = 0; k < mm1; k++)
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-		*(M32 + a * SIGMA5 + b * SIGMA4 + x[k] * SIGMA3 + x[k + 1] * SIGMA2 + c * SIGMA + d) = m2m2 - k;
+	for (int k = 0; k < mm1; k++){
+		*(M32 + x[k] * SIGMA3 + x[k + 1] * SIGMA2) = m2m2 - k;
+		mem_fill(1, SIGMA2, M32 + x[k] * SIGMA3 + x[k + 1] * SIGMA2);
+	}
+	mem_fill(SIGMA4, SIGMA5, M32);
 
-	/**(M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3) = mm1;
-	mem_fill(1, SIGMA, M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3);
-	mem_fill(SIGMA4, SIGMA6, M32);*/
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-		*(M32 + a * SIGMA5 + x[0] * SIGMA4 + x[mm1] * SIGMA3 + b * SIGMA2 + c * SIGMA + d) = mm1;
+	*(M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3) = mm1;
+	mem_fill(1, SIGMA3, M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3);
+	mem_fill(SIGMA5, SIGMA6, M32);
 
 	for (int k = 0; k < mm1; k++) {
 		*(M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4) = mm2 - k;
@@ -362,7 +330,7 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 
 // The MAW33 algorithm
 int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
-	if (m<3) return -1;
+	if (m < 3) return -1;
 	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mp2 = m + 2, mm2 = m - 2, mm3 = m - 3, mm1 = m - 1,
@@ -384,63 +352,36 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	mem_fill(1, SIGMA9, M33);
 
 	*(M33 + x[0]) = m3m1;
-	mem_fill(SIGMA, SIGMA9, M33);
+	mem_fill(SIGMA, SIGMA2, M33);
 
 	*(M33 + x[0] * SIGMA + x[1]) = m3m2;
-	mem_fill(SIGMA2, SIGMA9, M33);
+	mem_fill(SIGMA2, SIGMA3, M33);
 
 	for (int k = 0; k < mm2; k++)
 		*(M33 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m3m3 - k;
-	mem_fill(SIGMA3, SIGMA9, M33);
+	mem_fill(SIGMA3, SIGMA4, M33);
 
 	*(M33 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA) = m2m1;
 	mem_fill(1, SIGMA, M33 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA);
-	mem_fill(SIGMA4, SIGMA9, M33);
+	mem_fill(SIGMA4, SIGMA5, M33);
 
-	/**(M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2) = m2m1;
-	mem_fill(1, SIGMA, M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2);
-	mem_fill(SIGMA5, SIGMA9, M33);*/
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-	for (int e = 0; e < SIGMA; e++)
-	for (int f = 0; f < SIGMA; f++)
-		*(M33 + a * SIGMA8 + b * SIGMA7 + c * SIGMA6 + d * SIGMA5 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2 + e * SIGMA + f) = m2m2;
+	*(M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2) = m2m2;
+	mem_fill(1, SIGMA2, M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2);
+	mem_fill(SIGMA5, SIGMA6, M33);
 
-	/*for (int k = 0; k < mm2; k++)
-	*(M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3) = m2m3 - k;
-	mem_fill(SIGMA6, SIGMA9, M33);*/
-	for (int k = 0; k < mm2; k++)
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-	for (int e = 0; e < SIGMA; e++)
-	for (int f = 0; f < SIGMA; f++)
-		*(M33 + a * SIGMA8 + b * SIGMA7 + c * SIGMA6 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3 + d * SIGMA2 + e * SIGMA + f) = m2m3 - k;
+	for (int k = 0; k < mm2; k++) {
+		*(M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3) = m2m3 - k;
+		mem_fill(1, SIGMA3, M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3);
+	}
+	mem_fill(SIGMA6, SIGMA7, M33);
 
-	/**(M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4) = mm1;
-	mem_fill(1, SIGMA3, M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4);
-	mem_fill(SIGMA7, SIGMA9, M33);*/
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-	for (int e = 0; e < SIGMA; e++)
-	for (int f = 0; f < SIGMA; f++)
-		*(M33 + a * SIGMA8 + b * SIGMA7 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4 + c * SIGMA3 + d * SIGMA2 + e * SIGMA + f) = mm1;
+	*(M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4) = mm1;
+	mem_fill(1, SIGMA4, M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4);
+	mem_fill(SIGMA7, SIGMA8, M33);
 
-	/**(M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4) = mm1;
-	mem_fill(1, SIGMA3, M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4);
-	mem_fill(SIGMA7, SIGMA9, M33);*/
-	for (int a = 0; a < SIGMA; a++)
-	for (int b = 0; b < SIGMA; b++)
-	for (int c = 0; c < SIGMA; c++)
-	for (int d = 0; d < SIGMA; d++)
-	for (int e = 0; e < SIGMA; e++)
-	for (int f = 0; f < SIGMA; f++)
-		*(M33 + a * SIGMA8 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5 + b * SIGMA4 + c * SIGMA3 + d * SIGMA2 + e * SIGMA + f) = mm2;
+	*(M33 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5) = mm2;
+	mem_fill(1, SIGMA5, M33 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5);
+	mem_fill(SIGMA8, SIGMA9, M33);
 
 	for (int k = 0; k < mm2; k++) {
 		*(M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6) = mm3 - k;
