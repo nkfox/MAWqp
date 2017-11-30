@@ -55,7 +55,7 @@ void copy_value(unsigned char* pointer, int value, int length)
 
 // The MAW22 algorithm
 int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&prep_start);
+	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, k, r, pos, count = 0;
 	int D[P_MAX];
@@ -84,12 +84,6 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 
 	for (int k = 0; k < mm1; k++)
 		copy_value(M22 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, mm2 - k, SIGMA2);
-
-	QueryPerformanceCounter(&prep_end);
-	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_prep22 += u;
-
-	QueryPerformanceCounter(&start);
 
 	//Search
 	pos = mm2;
@@ -120,7 +114,7 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 // The MAW23 algorithm
 int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < 3) return -1;
-	QueryPerformanceCounter(&prep_start);
+	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, mm3 = m - 3, mp2 = m + 2, k, r, pos, count = 0;
 	int D[P_MAX];
@@ -156,12 +150,6 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int k = 0; k < mm2; k++)
 		copy_value(M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, mm3 - k, SIGMA3);
 
-	QueryPerformanceCounter(&prep_end);
-	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_prep23 += u;
-
-	QueryPerformanceCounter(&start);
-
 	//Search
 	pos = mm3;
 	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
@@ -191,7 +179,7 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 // The MAW24 algorithm
 int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < 4) return -1;
-	QueryPerformanceCounter(&prep_start);
+	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm2 = m - 2, mm1 = m - 1, mm3 = m - 3, mm4 = m - 4,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
@@ -235,12 +223,6 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int k = 0; k < mm3; k++)
 		copy_value(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4, mm4 - k, SIGMA4);
 
-	QueryPerformanceCounter(&prep_end);
-	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_prep24 += u;
-
-	QueryPerformanceCounter(&start);
-
 	//Search
 	pos = mm4;
 	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
@@ -270,7 +252,7 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 
 // The MAW32 algorithm
 int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&prep_start);
+	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m3 = m * 3,
 		m3m1 = 3 * m - 1, m3m2 = 3 * m - 2, k, r, pos, count = 0;
@@ -308,12 +290,6 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int k = 0; k < mm1; k++)
 		copy_value(M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, mm2 - k, SIGMA4);
 
-	QueryPerformanceCounter(&prep_end);
-	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_prep32 += u;
-
-	QueryPerformanceCounter(&start);
-
 	//Search
 	pos = mm2;
 	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
@@ -343,7 +319,7 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 // The MAW33 algorithm
 int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < 3) return -1;
-	QueryPerformanceCounter(&prep_start);
+	QueryPerformanceCounter(&start);
 
 	int mp1 = m + 1, mp2 = m + 2, mm2 = m - 2, mm3 = m - 3, mm1 = m - 1,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2p2 = 2 * m + 2, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
@@ -393,12 +369,6 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int k = 0; k < mm2; k++)
 		copy_value(M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6, mm3 - k, SIGMA6);
 
-	QueryPerformanceCounter(&prep_end);
-	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_prep33 += u;
-
-	QueryPerformanceCounter(&start);
-
 	//Search
 	pos = mm3;
 	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
@@ -437,17 +407,17 @@ int TD1[1000];
 void build_TD1() {
 	int i;
 	unsigned char *p;
-	for (i = 0; i<SIGMA; i++)
+	for (i = 0; i < SIGMA; i++)
 		TD1[i] = m + 1;
-	for (p = (unsigned char*)P, i = 0; i<m; p++, i++)
+	for (p = (unsigned char*)P, i = 0; i < m; p++, i++)
 		TD1[*p] = m - i;
 }
 
 int shb[1000];
 //=============== QLQS
 static int qlqsSearch(const unsigned char *P, int m, const unsigned char *T, int n) {
-	int k, i, shb[SIGMA], z = 2 * m + 1, zm1 = z - 1, nm = n - m;
 	QueryPerformanceCounter(&start);
+	int k, i, shb[SIGMA], z = 2 * m + 1, zm1 = z - 1, nm = n - m;
 	build_TD1();
 	for (i = 0; i < SIGMA; i++)
 		shb[i] = z - TD1[i];
@@ -476,10 +446,10 @@ static int qlqsSearch(const unsigned char *P, int m, const unsigned char *T, int
 
 //=============== HASH3
 int searchH3(unsigned char *x, int m, unsigned char *y, int n) {
+	if (m < 3) return -1;
+	QueryPerformanceCounter(&start);
 	int count, j, i, sh, sh1, mMinus1, mMinus2, shift[WSIZE];
 	unsigned char h;
-	QueryPerformanceCounter(&start);
-	if (m<3) return -1;
 	count = 0;
 	mMinus1 = m - 1;
 	mMinus2 = m - 2;
@@ -520,7 +490,7 @@ int searchH3(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		if (i < n) {
 			j = 0;
-			while (j<m && x[j] == y[i - mMinus1 + j]) j++;
+			while (j < m && x[j] == y[i - mMinus1 + j]) j++;
 			if (j >= m) {
 				OUTPUT(i - mMinus1);
 			}
@@ -544,13 +514,15 @@ int searchH3(unsigned char *x, int m, unsigned char *y, int n) {
 
 //=============== EBOW
 int ebomSearch(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start);
+
 	int S[XSIZE], FT[SIGMA][SIGMA];
 	int *trans[XSIZE];
 	int i, j, p, q;
 	int iMinus1, mMinus1, count;
 	unsigned char c;
 	count = 0;
-	QueryPerformanceCounter(&start);
+
 	// Preprocessing
 	for (i = 0; i <= m + 1; i++) trans[i] = (int *)malloc(sizeof(int)*(SIGMA));
 	for (i = 0; i <= m + 1; i++) for (j = 0; j<SIGMA; j++) trans[i][j] = UNDEFINED;
@@ -568,19 +540,19 @@ int ebomSearch(unsigned char *x, int m, unsigned char *y, int n) {
 	}
 
 	/* Construct the FirstTransition table */
-	for (i = 0; i<SIGMA; i++) {
+	for (i = 0; i < SIGMA; i++) {
 		q = trans[m][i];
-		for (j = 0; j<SIGMA; j++)
+		for (j = 0; j < SIGMA; j++)
 		if (q >= 0) FT[i][j] = trans[q][j];
 		else FT[i][j] = UNDEFINED;
 	}
 
 	/* Searching */
-	for (i = 0; i<m; i++) y[n + i] = x[i];
+	for (i = 0; i < m; i++) y[n + i] = x[i];
 	if (!memcmp(x, y, m)) count++;
 	j = m;
 	mMinus1 = m - 1;
-	while (j<n) {
+	while (j < n) {
 		while ((FT[y[j]][y[j - 1]]) == UNDEFINED) j += mMinus1;
 		i = j - 2;
 		p = FT[y[j]][y[j - 1]];
@@ -613,10 +585,10 @@ void TVSBSpreBrBc(unsigned char *x, int m, int brBc[SIGMA][SIGMA]) {
 
 //=============== TVSBS
 int TVSBSsearch(unsigned char *x, int m, unsigned char *y, int n){
+	QueryPerformanceCounter(&start);
 	int count, i, j = 0;
 	int BrBc[SIGMA][SIGMA];
 	unsigned char firstCh, lastCh;
-	QueryPerformanceCounter(&start);
 	int ktvsbs = 0;
 	TVSBSpreBrBc(x, m, BrBc);
 	firstCh = x[0];
@@ -637,11 +609,12 @@ int TVSBSsearch(unsigned char *x, int m, unsigned char *y, int n){
 
 //=============== FSBNDM
 int FSBNDMsearch(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start);
+
 	unsigned int B[SIGMA], D, set;
 	int i, j, pos, mMinus1, count;
 
 	//   if (m>31) return search_large(x,m,y,n); 
-	QueryPerformanceCounter(&start);
 	/* Preprocessing */
 	count = 0;
 	mMinus1 = m - 1;
@@ -682,10 +655,11 @@ void preSA(unsigned char *x, int m, unsigned int S[]) {
 
 //=============== Shift-And
 int searchSA(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start);
+
 	unsigned int lim, D;
 	unsigned int S[SIGMA], F;
 	int j, count;
-	QueryPerformanceCounter(&start);
 	//   if (m > WORD) return search_large(x,m,y,n);
 
 	/* Preprocessing */
@@ -708,18 +682,18 @@ int searchSA(unsigned char *x, int m, unsigned char *y, int n) {
 
 //============== SBNDMq2
 int searchSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start);
 	unsigned int B[SIGMA], D, q;
 	int i, j, pos, mMinusq, mq, count, shift;
-	QueryPerformanceCounter(&start);
 	q = 2;
-	if (m<q) return -1;
+	if (m < q) return -1;
 	//   if (m>32) return search_large(x,m,y,n);
 
 	/* Preprocessing */
 	count = 0;
 	mMinusq = m - q + 1;
 	mq = m - q;
-	for (i = 0; i<SIGMA; i++) B[i] = 0;
+	for (i = 0; i < SIGMA; i++) B[i] = 0;
 	for (i = 1; i <= m; ++i)
 		B[x[m - i]] |= (1 << (i - 1));
 
@@ -756,11 +730,11 @@ int searchSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
 #define GRAM4(j) (B[y[j]]<<3)&(B[y[j-1]]<<2)&(B[y[j-2]]<<1)&B[y[j-3]]
 
 int search_large_SBNDM4(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start);
 	unsigned int B[SIGMA], D, q, shift;
 	int i, j, pos, mMinusq, mq, count, p_len;
 	q = 4;
-	QueryPerformanceCounter(&start);
-	if (m<q) return 0;
+	if (m < q) return 0;
 	p_len = m;
 	m = 32;
 	int diff = p_len - m;
@@ -769,7 +743,7 @@ int search_large_SBNDM4(unsigned char *x, int m, unsigned char *y, int n) {
 	int kfsbndm4 = 0;
 	mMinusq = m - q + 1;
 	mq = m - q;
-	for (i = 0; i<SIGMA; i++) B[i] = 0;
+	for (i = 0; i < SIGMA; i++) B[i] = 0;
 	for (i = 1; i <= m; ++i)
 		B[x[m - i]] |= (1 << (i - 1));
 
@@ -791,7 +765,7 @@ int search_large_SBNDM4(unsigned char *x, int m, unsigned char *y, int n) {
 			while (D = (D << 1) & B[y[j - q]]) --j;
 			j += mq;
 			if (j == pos) {
-				for (i = m + 1; i<p_len && x[i] == y[j - m + 1 + i]; i++);
+				for (i = m + 1; i < p_len && x[i] == y[j - m + 1 + i]; i++);
 				if (i == p_len) kfsbndm4++;
 				j += shift;
 			}
@@ -806,18 +780,21 @@ int search_large_SBNDM4(unsigned char *x, int m, unsigned char *y, int n) {
 
 //================= SBNDMq4
 int searchSBNDMq4(unsigned char *x, int m, unsigned char *y, int n) {
-	unsigned int B[SIGMA], D, q;
-	int i, j, pos, mMinusq, mq, count, shift;
-	q = 4;
+	unsigned int q = 4;
 
 	if (m<q) return -1;
 	if (m>32) return search_large_SBNDM4(x, m, y, n);
+
 	QueryPerformanceCounter(&start);
+
+	unsigned int B[SIGMA], D;
+	int i, j, pos, mMinusq, mq, count, shift;
+
 	/* Preprocessing */
 	int kfsbndm4 = 0;
 	mMinusq = m - q + 1;
 	mq = m - q;
-	for (i = 0; i<SIGMA; i++) B[i] = 0;
+	for (i = 0; i < SIGMA; i++) B[i] = 0;
 	for (i = 1; i <= m; ++i)
 		B[x[m - i]] |= (1 << (i - 1));
 
@@ -853,9 +830,9 @@ int searchSBNDMq4(unsigned char *x, int m, unsigned char *y, int n) {
 
 //============== GSBNDMq2
 int GSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start);
 	unsigned int B[SIGMA], D, q, mpm2 = 2 * m - 2, mm1 = m - 1, mm2 = m - 2;
 	int i, j, pos, mMinusq, mq, shift;
-	QueryPerformanceCounter(&start);
 	q = 2;
 	if (m < 4) return -1;
 	int kgsb2 = 0;
@@ -864,13 +841,13 @@ int GSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
 	/* Preprocessing */
 	mMinusq = m - q + 1;
 	mq = m - q;
-	for (i = 0; i<SIGMA; i++) B[i] = 0;
+	for (i = 0; i < SIGMA; i++) B[i] = 0;
 	for (i = 0; i < m; ++i)
 		B[x[i]] |= (1 << (mm1 - i));
 
 	/* Searching */
 	if (!memcmp(x, y, m)) kgsb2++;
-	for (int i = 0; i<m; i++)
+	for (int i = 0; i < m; i++)
 		y[N - m * 2 + i] = P[i];
 	i = m - 2;
 	while (i < n) {
@@ -901,14 +878,15 @@ const int Qq = 3, F = 1, W = 32;
 
 //============== FSBNDM31
 int FSBNDMsearch31(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start);
 	unsigned int B[SIGMA], D;
 	int i, j, pos, mm1 = m - 1, count, nq = n - Qq + 1, mqf = m - Qq + F + 1;
 
 	//   if (m>31) return search_large(x,m,y,n); 
-	QueryPerformanceCounter(&start);
+
 	/* Preprocessing */
 	int kfsbqf = 0;
-	for (i = 0; i<SIGMA; i++) B[i] = 1;
+	for (i = 0; i < SIGMA; i++) B[i] = 1;
 	for (i = 0; i < m; ++i) B[x[i]] |= (1 << (mm1 - i + F));
 
 	/* Searching */
@@ -939,14 +917,17 @@ const int Q41 = 4, F41 = 1;
 
 //============== FSBNDM41
 int FSBNDMsearch41(unsigned char *x, int m, unsigned char *y, int n) {
+	if (m < 3) return -1;
+	QueryPerformanceCounter(&start);
+
 	unsigned int B[SIGMA], D;
 	int i, j, pos, mm1 = m - 1, count, nq = n - Q41 + 1, mqf = m - Q41 + F41 + 1;
-	if (m<3) return -1;
+
 	//   if (m>31) return search_large(x,m,y,n); 
-	QueryPerformanceCounter(&start);
+
 	/* Preprocessing */
 	int kfsbq41 = 0;
-	for (i = 0; i<SIGMA; i++) B[i] = 1;
+	for (i = 0; i < SIGMA; i++) B[i] = 1;
 	for (i = 0; i < m; ++i) B[x[i]] |= (1 << (mm1 - i + F41));
 
 	/* Searching */
@@ -977,14 +958,16 @@ const int Q51 = 4, F51 = 1;
 
 //============== FSBNDM41
 int FSBNDMsearch51(unsigned char *x, int m, unsigned char *y, int n) {
-	unsigned int B[SIGMA], D;
-	int i, j, pos, mm1 = m - 1, count, nq = n - Q51 + 1, mqf = m - Q51 + F51 + 1;
-	if (m<4) return -1;
+	if (m < 4) return -1;
 	//   if (m>31) return search_large(x,m,y,n); 
 	QueryPerformanceCounter(&start);
+
+	unsigned int B[SIGMA], D;
+	int i, j, pos, mm1 = m - 1, count, nq = n - Q51 + 1, mqf = m - Q51 + F51 + 1;
+
 	/* Preprocessing */
 	int kfsbq51 = 0;
-	for (i = 0; i<SIGMA; i++) B[i] = 1;
+	for (i = 0; i < SIGMA; i++) B[i] = 1;
 	for (i = 0; i < m; ++i) B[x[i]] |= (1 << (mm1 - i + F51));
 
 	/* Searching */
@@ -1017,11 +1000,13 @@ int FSBNDMsearch51(unsigned char *x, int m, unsigned char *y, int n) {
 
 //============== BSDM
 int searchBSDM(unsigned char *x, int m, unsigned char *y, int n) {
+	if (m < Q) return -1;
+	QueryPerformanceCounter(&start);
+
 	unsigned int B[DSIGMA];
 	int i, j, k, count = 0;
 	unsigned int s, d;
-	if (m < Q) return -1;
-	QueryPerformanceCounter(&start);
+
 	/* Preprocessing */
 	unsigned int occ[DSIGMA] = { 0 };
 	int star = 0, len = 0;
@@ -1080,7 +1065,6 @@ int searchBSDM(unsigned char *x, int m, unsigned char *y, int n) {
 }
 
 void generateRandom() {
-	f = fopen("output.txt", "wt");
 	srand((unsigned)time(NULL));
 	for (int i = 0; i < N; i++) {
 		T[i] = (rand() + glob % 320) % SIGMA;
@@ -1110,6 +1094,7 @@ void main(){
 	QueryPerformanceFrequency(&freq);
 	QueryPerformanceFrequency(&_freq);
 
+	f = fopen("output.csv", "wt");
 	generateRandom();
 	//DNA();
 
@@ -1120,51 +1105,51 @@ void main(){
 	//for (m = 2; m < 81; m < 10 ? m++ : m += 10) {
 	for (m = 2; m < 16; m++) {
 
-			for (int ig = 0; ig < 2; ig++) {
-				sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = sum_qlqs = sum_hash3 = sum_ebom = sum_tvsbs = sum_fsbndm = 
-					sum_sa = sum_sbndmq2 = sum_sbndmq4 = sum_gsbndmq2 = sum_fsb31 = sum_fsb41 = sum_fsb51 = sum_bsdm = 0;
-				nm2 = N - 2 * m;
-				memcpy(T1, T, N);
-				for (int ii = 0; ii < ITER; ii++) {
-					srand((unsigned)time(NULL));
-					int patpos = rand() % (N - m - 2);
-					for (int i = 0; i < m; i++)
-						P[i] = T[patpos + i];
+		for (int ig = 0; ig < 2; ig++) {
+			sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = sum_qlqs = sum_hash3 = sum_ebom = sum_tvsbs = sum_fsbndm =
+				sum_sa = sum_sbndmq2 = sum_sbndmq4 = sum_gsbndmq2 = sum_fsb31 = sum_fsb41 = sum_fsb51 = sum_bsdm = 0;
+			nm2 = N - 2 * m;
+			memcpy(T1, T, N);
+			for (int ii = 0; ii < ITER; ii++) {
+				srand((unsigned)time(NULL));
+				int patpos = rand() % (N - m - 2);
+				for (int i = 0; i < m; i++)
+					P[i] = T[patpos + i];
 
-					memcpy(P1, P, m);
+				memcpy(P1, P, m);
 
-					maw22 = MAW22(P, m, T, N);
-					maw23 = MAW23(P, m, T, N);
-					maw24 = MAW24(P, m, T, N);
-					maw32 = MAW32(P, m, T, N);
-					maw33 = MAW33(P, m, T, N);
+				maw22 = MAW22(P, m, T, N);
+				maw23 = MAW23(P, m, T, N);
+				maw24 = MAW24(P, m, T, N);
+				maw32 = MAW32(P, m, T, N);
+				maw33 = MAW33(P, m, T, N);
 
-					qlqs = qlqsSearch(P, m, T, N);
-					hash3 = searchH3(P, m, T, N);
-					ebom = ebomSearch(P, m, T, N);
-					tvsbs = TVSBSsearch(P, m, T, N);
-					fsbndm = FSBNDMsearch(P, m, T, N);
-					sa = searchSA(P, m, T, N);
-					sbndmq2 = searchSBNDMq2(P, m, T, N);
-					sbndmq4 = searchSBNDMq4(P, m, T, N);
-					gsbndmq2 = GSBNDMq2(P, m, T, N);
-					fsb31 = FSBNDMsearch31(P, m, T, N);
-					fsb41 = FSBNDMsearch41(P, m, T, N);
-					fsb51 = FSBNDMsearch51(P, m, T, N);
-					bsdm = searchBSDM(P, m, T, N);
-				}
-				printf("b=%d m=%d\n", SIGMA, m);
-				printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, qlqs, hash3, ebom, tvsbs, fsbndm, sa, sbndmq2, sbndmq4, gsbndmq2, fsb31, fsb41, fsb51, bsdm);
-				//fprintf(f, "\n%2.d   %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld   %7.lld %7.lld %7.lld %7.lld %7.lld          %7.lld %7.lld %7.lld %7.lld %7.lld",
-				//	m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33,
-				//	sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33);
-				fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
-					m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, sum_sbndmq4,
-					sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
-
+				qlqs = qlqsSearch(P, m, T, N);
+				hash3 = searchH3(P, m, T, N);
+				ebom = ebomSearch(P, m, T, N);
+				tvsbs = TVSBSsearch(P, m, T, N);
+				fsbndm = FSBNDMsearch(P, m, T, N);
+				sa = searchSA(P, m, T, N);
+				sbndmq2 = searchSBNDMq2(P, m, T, N);
+				sbndmq4 = searchSBNDMq4(P, m, T, N);
+				gsbndmq2 = GSBNDMq2(P, m, T, N);
+				fsb31 = FSBNDMsearch31(P, m, T, N);
+				fsb41 = FSBNDMsearch41(P, m, T, N);
+				fsb51 = FSBNDMsearch51(P, m, T, N);
+				bsdm = searchBSDM(P, m, T, N);
 			}
+			printf("b=%d m=%d\n", SIGMA, m);
+			printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, qlqs, hash3, ebom, tvsbs, fsbndm, sa, sbndmq2, sbndmq4, gsbndmq2, fsb31, fsb41, fsb51, bsdm);
+			//fprintf(f, "\n%2.d   %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld   %7.lld %7.lld %7.lld %7.lld %7.lld          %7.lld %7.lld %7.lld %7.lld %7.lld",
+			//	m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33,
+			//	sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33);
+			fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
+				m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, sum_sbndmq4,
+				sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
+
 		}
-		fclose(f);
-		system("pause");
 	}
+	fclose(f);
+	system("pause");
+}
 
