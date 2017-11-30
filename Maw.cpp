@@ -17,7 +17,7 @@ using namespace std;
 
 #define P_MAX 200	//maximum pattern length
 #define V_MAX 20000 //maximum size of pointer and shift arrays
-#define SIGMA 4		//alphabet size
+#define SIGMA 8		//alphabet size
 #define SIGMA2 SIGMA*SIGMA
 #define SIGMA3 SIGMA*SIGMA2
 #define SIGMA4 SIGMA*SIGMA3
@@ -27,7 +27,7 @@ using namespace std;
 #define SIGMA8 SIGMA*SIGMA7
 #define SIGMA9 SIGMA*SIGMA8
 
-const int TOTAL = 5000010;
+const int TOTAL = 10000010;
 unsigned char T[TOTAL], T1[TOTAL], P[200], P1[200];
 int N = TOTAL - 10, ITER = 200, m = 5;
 
@@ -48,6 +48,12 @@ void mem_fill(int a, int b, unsigned char* c) {
 	memcpy(c + i, c, b - i);
 }
 
+void copy_value(unsigned char* pointer, int value, int length)
+{
+	*pointer = value;
+	mem_fill(1, length, pointer);
+}
+
 // The MAW22 algorithm
 int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&prep_start);
@@ -65,7 +71,7 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 
 	// Fill the M22 search table
 	*M22 = m2;
-	mem_fill(1, SIGMA4, M22);
+	mem_fill(1, SIGMA, M22);
 
 	*(M22 + x[0]) = m2m1;
 	mem_fill(SIGMA, SIGMA2, M22);
@@ -74,14 +80,11 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 		*(M22 + x[k] * SIGMA + x[k + 1]) = m2m2 - k;
 	mem_fill(SIGMA2, SIGMA3, M22);
 
-	*(M22 + x[0] * SIGMA2 + x[mm1] * SIGMA) = mm1;
-	mem_fill(1, SIGMA, M22 + x[0] * SIGMA2 + x[mm1] * SIGMA);
+	copy_value(M22 + x[0] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
 	mem_fill(SIGMA3, SIGMA4, M22);
 
-	for (int k = 0; k < mm1; k++) {
-		*(M22 + x[k] * SIGMA3 + x[k + 1] * SIGMA2) = mm2 - k;
-		mem_fill(1, SIGMA2, M22 + x[k] * SIGMA3 + x[k + 1] * SIGMA2);
-	}
+	for (int k = 0; k < mm1; k++)
+		copy_value(M22 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, mm2 - k, SIGMA2);
 
 	QueryPerformanceCounter(&prep_end);
 	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
@@ -122,7 +125,7 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 
 	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, mm3 = m - 3, mp2 = m + 2, k, r, pos, count = 0;
 	int D[P_MAX];
-	unsigned char* M23 = (unsigned char *)malloc(SIGMA6); // MAW23 search table
+	unsigned char* M23 = (unsigned char*)malloc(SIGMA6); // MAW23 search table
 
 	// Preprocessing
 	// Build the BMH shift table D
@@ -131,9 +134,9 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int i = 0; i < mm1; i++)
 		D[x[i]] = mm1 - i;
 
-	// Fill the M22 search table
+	// Fill the M23 search table
 	*M23 = m2;
-	mem_fill(1, SIGMA6, M23);
+	mem_fill(1, SIGMA, M23);
 
 	*(M23 + x[0]) = m2m1;
 	mem_fill(SIGMA, SIGMA2, M23);
@@ -145,18 +148,14 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 		*(M23 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m2m3 - k;
 	mem_fill(SIGMA3, SIGMA4, M23);
 
-	*(M23 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA) = mm1;
-	mem_fill(1, SIGMA, M23 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA);
+	copy_value(M23 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
 	mem_fill(SIGMA4, SIGMA5, M23);
 
-	*(M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2) = mm2;
-	mem_fill(1, SIGMA2, M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2);
+	copy_value(M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2, mm2, SIGMA2);
 	mem_fill(SIGMA5, SIGMA6, M23);
 
-	for (int k = 0; k < mm2; k++) {
-		*(M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3) = mm3 - k;
-		mem_fill(1, SIGMA3, M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3);
-	}
+	for (int k = 0; k < mm2; k++)
+		copy_value(M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, mm3 - k, SIGMA3);
 
 	QueryPerformanceCounter(&prep_end);
 	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
@@ -208,9 +207,9 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int i = 0; i < mm1; i++)
 		D[x[i]] = mm1 - i;
 
-	/**/// Fill the M22 search table
+	// Fill the M24 search table
 	*M24 = m2;
-	mem_fill(1, SIGMA8, M24);
+	mem_fill(1, SIGMA, M24);
 
 	*(M24 + x[0]) = m2m1;
 	mem_fill(SIGMA, SIGMA2, M24);
@@ -225,22 +224,17 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 		*(M24 + x[k] * SIGMA3 + x[k + 1] * SIGMA2 + x[k + 2] * SIGMA + x[k + 3]) = m2m4 - k;
 	mem_fill(SIGMA4, SIGMA5, M24);
 
-	*(M24 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA) = mm1;
-	mem_fill(1, SIGMA, M24 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA);
+	copy_value(M24 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
 	mem_fill(SIGMA5, SIGMA6, M24);
 
-	*(M24 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2) = mm2;
-	mem_fill(1, SIGMA2, M24 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2);
+	copy_value(M24 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2, mm2, SIGMA2);
 	mem_fill(SIGMA6, SIGMA7, M24);
 
-	*(M24 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3) = mm3;
-	mem_fill(1, SIGMA3, M24 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3);
+	copy_value(M24 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3, mm3, SIGMA3);
 	mem_fill(SIGMA7, SIGMA8, M24);
 
-	for (int k = 0; k < mm3; k++) {
-		*(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4) = mm4 - k;
-		mem_fill(1, SIGMA4, M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4);
-	}
+	for (int k = 0; k < mm3; k++)
+		copy_value(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4, mm4 - k, SIGMA4);
 
 	QueryPerformanceCounter(&prep_end);
 	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
@@ -291,9 +285,9 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int i = 0; i < mm1; i++)
 		D[x[i]] = mm1 - i;
 
-	// Fill the M22 search table
+	// Fill the M32 search table
 	*M32 = m3;
-	mem_fill(1, SIGMA6, M32);
+	mem_fill(1, SIGMA, M32);
 
 	*(M32 + x[0]) = m3m1;
 	mem_fill(SIGMA, SIGMA2, M32);
@@ -302,24 +296,18 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 		*(M32 + x[k] * SIGMA + x[k + 1]) = m3m2 - k;
 	mem_fill(SIGMA2, SIGMA3, M32);
 
-	*(M32 + x[0] * SIGMA2 + x[mm1] * SIGMA) = m2m1;
-	mem_fill(1, SIGMA, M32 + x[0] * SIGMA2 + x[mm1] * SIGMA);
+	copy_value(M32 + x[0] * SIGMA2 + x[mm1] * SIGMA, m2m1, SIGMA);
 	mem_fill(SIGMA3, SIGMA4, M32);
 
-	for (int k = 0; k < mm1; k++){
-		*(M32 + x[k] * SIGMA3 + x[k + 1] * SIGMA2) = m2m2 - k;
-		mem_fill(1, SIGMA2, M32 + x[k] * SIGMA3 + x[k + 1] * SIGMA2);
-	}
+	for (int k = 0; k < mm1; k++)
+		copy_value(M32 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, m2m2 - k, SIGMA2);
 	mem_fill(SIGMA4, SIGMA5, M32);
 
-	*(M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3) = mm1;
-	mem_fill(1, SIGMA3, M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3);
+	copy_value(M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3, mm1, SIGMA3);
 	mem_fill(SIGMA5, SIGMA6, M32);
 
-	for (int k = 0; k < mm1; k++) {
-		*(M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4) = mm2 - k;
-		mem_fill(1, SIGMA4, M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4);
-	}
+	for (int k = 0; k < mm1; k++)
+		copy_value(M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, mm2 - k, SIGMA4);
 
 	QueryPerformanceCounter(&prep_end);
 	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
@@ -364,6 +352,7 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 		k, r, pos, count = 0;
 	int D[P_MAX];
 	unsigned char* M33 = (unsigned char *)malloc(SIGMA9); // MAW33 search table
+	unsigned char* point;
 
 	// Preprocessing
 	// Build the BMH shift table D
@@ -372,9 +361,9 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	for (int i = 0; i < mm1; i++)
 		D[x[i]] = mm1 - i;
 
-	// Fill the M22 search table
+	// Fill the M33 search table
 	*M33 = m3;
-	mem_fill(1, SIGMA9, M33);
+	mem_fill(1, SIGMA, M33);
 
 	*(M33 + x[0]) = m3m1;
 	mem_fill(SIGMA, SIGMA2, M33);
@@ -386,32 +375,24 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 		*(M33 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m3m3 - k;
 	mem_fill(SIGMA3, SIGMA4, M33);
 
-	*(M33 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA) = m2m1;
-	mem_fill(1, SIGMA, M33 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA);
+	copy_value(M33 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, m2m1, SIGMA);
 	mem_fill(SIGMA4, SIGMA5, M33);
 
-	*(M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2) = m2m2;
-	mem_fill(1, SIGMA2, M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2);
+	copy_value(M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2, m2m2, SIGMA2);
 	mem_fill(SIGMA5, SIGMA6, M33);
 
-	for (int k = 0; k < mm2; k++) {
-		*(M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3) = m2m3 - k;
-		mem_fill(1, SIGMA3, M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3);
-	}
+	for (int k = 0; k < mm2; k++)
+		copy_value(M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, m2m3 - k, SIGMA3);
 	mem_fill(SIGMA6, SIGMA7, M33);
 
-	*(M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4) = mm1;
-	mem_fill(1, SIGMA4, M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4);
+	copy_value(M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4, mm1, SIGMA4);
 	mem_fill(SIGMA7, SIGMA8, M33);
 
-	*(M33 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5) = mm2;
-	mem_fill(1, SIGMA5, M33 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5);
+	copy_value(M33 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5, mm2, SIGMA5);
 	mem_fill(SIGMA8, SIGMA9, M33);
 
-	for (int k = 0; k < mm2; k++) {
-		*(M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6) = mm3 - k;
-		mem_fill(1, SIGMA6, M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6);
-	}
+	for (int k = 0; k < mm2; k++)
+		copy_value(M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6, mm3 - k, SIGMA6);
 
 	QueryPerformanceCounter(&prep_end);
 	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
@@ -484,10 +465,8 @@ void main(){
 
 	fprintf(f, "b=%d N=%d ITER=%d\n", SIGMA, N, ITER);
 
-	//fprintf(f, " m   MAW22   MAW23   MAW24   MAW32   MAW33             PREP22  PREP23  PREP24  PREP32  PREP33          SUM22   SUM23   SUM24   SUM32   SUM33");
 	fprintf(f, "m,MAW22,MAW23,MAW24,MAW32,MAW33,,PREP22,PREP23,PREP24,PREP32,PREP33,,SUM22,SUM23,SUM24,SUM32,SUM33");
-	for (m = 10; m < 81; m < 10 ? m++ : m += 10) {
-	//for (m = 2; m < 16; m++) {
+	for (m = 2; m < 81; m < 10 ? m++ : m += 10) {
 		for (int ig = 0; ig < 2; ig++) {
 			sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = 0;
 			sum_prep22 = sum_prep23 = sum_prep24 = sum_prep32 = sum_prep33 = 0;
@@ -509,9 +488,7 @@ void main(){
 			}
 			printf("b=%d m=%d\n", SIGMA, m);
 			printf("%d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33);
-			//fprintf(f, "\n%2.d   %7.lld %7.lld %7.lld %7.lld %7.lld          %7.lld %7.lld %7.lld %7.lld %7.lld          %7.lld %7.lld %7.lld %7.lld %7.lld",
-			//	m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33,
-			//	sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33);
+			printf("%7.lld %7.lld %7.lld %7.lld %7.lld\n\n", sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33);
 			fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
 				m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33,
 				sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33);
