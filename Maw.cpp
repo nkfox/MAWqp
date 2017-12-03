@@ -17,7 +17,7 @@ using namespace std;
 
 #define P_MAX 200	//maximum pattern length
 #define V_MAX 20000 //maximum size of pointer and shift arrays
-#define SIGMA 8		//alphabet size
+/*#define SIGMA 8		//alphabet size
 #define SIGMA2 SIGMA*SIGMA
 #define SIGMA3 SIGMA*SIGMA2
 #define SIGMA4 SIGMA*SIGMA3
@@ -25,11 +25,41 @@ using namespace std;
 #define SIGMA6 SIGMA*SIGMA5
 #define SIGMA7 SIGMA*SIGMA6
 #define SIGMA8 SIGMA*SIGMA7
-#define SIGMA9 SIGMA*SIGMA8
+#define SIGMA9 SIGMA*SIGMA8*/
 
-const int TOTAL = 10000010;
+/*#define SIGMA 8		//alphabet size
+#define SIGMA2 64
+#define SIGMA3 512
+#define SIGMA4 4096
+#define SIGMA5 32768
+#define SIGMA6 262144
+#define SIGMA7 2097152
+#define SIGMA8 16777216
+#define SIGMA9 134217728
+
+#define SIGMA 6		//alphabet size
+#define SIGMA2 36
+#define SIGMA3 216
+#define SIGMA4 1296
+#define SIGMA5 7776
+#define SIGMA6 46656
+#define SIGMA7 279936
+#define SIGMA8 1679616
+#define SIGMA9 10077696*/
+
+#define SIGMA 4		//alphabet size
+#define SIGMA2 16
+#define SIGMA3 64
+#define SIGMA4 256
+#define SIGMA5 1024
+#define SIGMA6 4096
+#define SIGMA7 16384
+#define SIGMA8 65536
+#define SIGMA9 262144
+
+const int TOTAL = 10000200;
 unsigned char T[TOTAL], T1[TOTAL], P[200], P1[200];
-int N = TOTAL - 10, ITER = 200, m = 5;
+int N = TOTAL - 200, ITER = 200, m = 5;
 
 FILE * f;
 LARGE_INTEGER start, _end, freq, _freq, prep_start, prep_end;
@@ -477,14 +507,16 @@ void main(){
 				int patpos = rand() % (N - m - 2);
 				for (int i = 0; i < m; i++)
 					P[i] = T[patpos + i];
+				for (int i = 0; i < m; i++)
+					T[N - m + i] = P[i];
 
 				memcpy(P1, P, m);
 
-				maw22 = MAW22(P, m, T, N);
-				maw23 = MAW23(P, m, T, N);
-				maw24 = MAW24(P, m, T, N);
-				maw32 = MAW32(P, m, T, N);
-				maw33 = MAW33(P, m, T, N);
+				maw22 = MAW22(P, m, T, nm2);
+				maw23 = MAW23(P, m, T, nm2);
+				maw24 = MAW24(P, m, T, nm2);
+				maw32 = MAW32(P, m, T, nm2);
+				maw33 = MAW33(P, m, T, nm2);
 			}
 			printf("b=%d m=%d\n", SIGMA, m);
 			printf("%d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33);

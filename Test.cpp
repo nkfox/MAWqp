@@ -17,7 +17,7 @@ using namespace std;
 
 #define P_MAX 200	//maximum pattern length
 #define V_MAX 20000 //maximum size of pointer and shift arrays
-#define SIGMA 4		//alphabet size
+/*#define SIGMA 8		//alphabet size
 #define SIGMA2 SIGMA*SIGMA
 #define SIGMA3 SIGMA*SIGMA2
 #define SIGMA4 SIGMA*SIGMA3
@@ -25,11 +25,44 @@ using namespace std;
 #define SIGMA6 SIGMA*SIGMA5
 #define SIGMA7 SIGMA*SIGMA6
 #define SIGMA8 SIGMA*SIGMA7
-#define SIGMA9 SIGMA*SIGMA8
+#define SIGMA9 SIGMA*SIGMA8*/
 
-const int TOTAL = 10000010;
+
+/**/#define SIGMA 4		//alphabet size
+#define SIGMA2 16
+#define SIGMA3 64
+#define SIGMA4 256
+#define SIGMA5 1024
+#define SIGMA6 4096
+#define SIGMA7 16384
+#define SIGMA8 65536
+#define SIGMA9 262144
+
+/*#define SIGMA 6		//alphabet size
+#define SIGMA2 36
+#define SIGMA3 216
+#define SIGMA4 1296
+#define SIGMA5 7776
+#define SIGMA6 46656
+#define SIGMA7 279936
+#define SIGMA8 1679616
+#define SIGMA9 10077696
+
+#define SIGMA 8		//alphabet size
+#define SIGMA2 64
+#define SIGMA3 512
+#define SIGMA4 4096
+#define SIGMA5 32768
+#define SIGMA6 262144
+#define SIGMA7 2097152
+#define SIGMA8 16777216
+#define SIGMA9 134217728*/
+
+
+
+const int TOTAL = 10000200;
 unsigned char T[TOTAL], T1[TOTAL], P[200], P1[200];
-int N = TOTAL - 10, ITER = 200, m = 5;
+int N = TOTAL - 200, ITER = 200, m = 5;
 
 FILE * f;
 LARGE_INTEGER start, _end, freq, _freq, prep_start, prep_end;
@@ -830,11 +863,11 @@ int searchSBNDMq4(unsigned char *x, int m, unsigned char *y, int n) {
 
 //============== GSBNDMq2
 int GSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
+	if (m < 4) return -1;
 	QueryPerformanceCounter(&start);
 	unsigned int B[SIGMA], D, q, mpm2 = 2 * m - 2, mm1 = m - 1, mm2 = m - 2;
 	int i, j, pos, mMinusq, mq, shift;
 	q = 2;
-	if (m < 4) return -1;
 	int kgsb2 = 0;
 	//   if (m>32) return search_large(x,m,y,n);
 
@@ -1100,29 +1133,31 @@ void main(){
 
 	fprintf(f, "b=%d N=%d ITER=%d\n", SIGMA, N, ITER);
 
-	//fprintf(f, " m   MAW22   MAW23   MAW24   MAW32   MAW33   QLQS   HASH3   EBOW");
 	fprintf(f, "m,MAW22,MAW23,MAW24,MAW32,MAW33,QLQS,HASH3,EBOW,TVSBS,FSBNDM,SA,SBNDMq2,SBNDMq4,GSBNDMq2,FSBNDM31,FSBNDM41,FSBNDM51,BSDM");
-	//for (m = 2; m < 81; m < 10 ? m++ : m += 10) {
 	for (m = 2; m < 16; m++) {
+	//for (m = 16; m < 33; m+=2) {
 
 		for (int ig = 0; ig < 2; ig++) {
 			sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = sum_qlqs = sum_hash3 = sum_ebom = sum_tvsbs = sum_fsbndm =
 				sum_sa = sum_sbndmq2 = sum_sbndmq4 = sum_gsbndmq2 = sum_fsb31 = sum_fsb41 = sum_fsb51 = sum_bsdm = 0;
 			nm2 = N - 2 * m;
+			int nm = N - m;
 			memcpy(T1, T, N);
 			for (int ii = 0; ii < ITER; ii++) {
 				srand((unsigned)time(NULL));
 				int patpos = rand() % (N - m - 2);
 				for (int i = 0; i < m; i++)
 					P[i] = T[patpos + i];
+				for (int i = 0; i < m; i++)
+					T[N - m + i] = P[i];
 
 				memcpy(P1, P, m);
 
-				maw22 = MAW22(P, m, T, N);
-				maw23 = MAW23(P, m, T, N);
-				maw24 = MAW24(P, m, T, N);
-				maw32 = MAW32(P, m, T, N);
-				maw33 = MAW33(P, m, T, N);
+				maw22 = MAW22(P, m, T, nm2);
+				maw23 = MAW23(P, m, T, nm2);
+				maw24 = MAW24(P, m, T, nm2);
+				maw32 = MAW32(P, m, T, nm2);
+				maw33 = MAW33(P, m, T, nm2);
 
 				qlqs = qlqsSearch(P, m, T, N);
 				hash3 = searchH3(P, m, T, N);
@@ -1139,11 +1174,11 @@ void main(){
 				bsdm = searchBSDM(P, m, T, N);
 			}
 			printf("b=%d m=%d\n", SIGMA, m);
-			printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, qlqs, hash3, ebom, tvsbs, fsbndm, sa, sbndmq2, sbndmq4, gsbndmq2, fsb31, fsb41, fsb51, bsdm);
-			//fprintf(f, "\n%2.d   %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld   %7.lld %7.lld %7.lld %7.lld %7.lld          %7.lld %7.lld %7.lld %7.lld %7.lld",
-			//	m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33,
-			//	sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33);
+			printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", maw22, maw23, maw24, maw32, maw33, qlqs, hash3, ebom, tvsbs, fsbndm, sa, sbndmq2, sbndmq4, gsbndmq2, fsb31, fsb41, fsb51, bsdm);
 			fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
+				m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, sum_sbndmq4,
+				sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
+			printf("%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld\n\n",
 				m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, sum_sbndmq4,
 				sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
 
