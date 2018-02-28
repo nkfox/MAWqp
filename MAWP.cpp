@@ -646,7 +646,6 @@ int MAW22P_mod(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&prep_start);
 
 	int ***V0[SIGMA], **V1[SIGMA * P_MAX], *V2[SIGMA * (P_MAX + 1)], V3[SIGMA * P_MAX * 2]; //V3 - shift array; V0, V1, V2 - pointers arrays
-	int V0m[SIGMA], V1m[SIGMA * P_MAX], V2m[SIGMA * (P_MAX + 1)], V3m[SIGMA * P_MAX * 2];
 	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
 	int pos, r, k, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2,
@@ -724,103 +723,6 @@ int MAW22P_mod(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&_end);
 	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
 	sum_maw22p_mod += u;
-
-	return count;
-}
-
-// The MAW32 algorithm with pointers
-int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&prep_start);
-
-	int *****V0[SIGMA], ****V1[SIGMA * P_MAX], ***V2[SIGMA * (P_MAX + 1)], **V3[SIGMA * P_MAX * 2],
-		*V4[SIGMA * (P_MAX * 2 + 1)], V5[SIGMA * P_MAX * 3]; //V5 - shift array; V0, V1, V2, V3, V4 - pointers arrays
-	int V0m[SIGMA], V1m[SIGMA * P_MAX], V2m[SIGMA * (P_MAX + 1)], V3m[SIGMA * P_MAX * 2], V4m[SIGMA * (P_MAX * 2 + 1)], V5m[SIGMA * P_MAX * 3];
-	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
-	int pos, r, k, count = 0, int_size = sizeof(int),
-		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
-		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
-		m3 = m * 3, m3m1 = m * 3 - 1,
-		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA,
-		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma * m * 2;
-
-	//Preprocessing
-	buildBMHShiftTable(D, D_, x, m);
-	buildBRShiftTable(BR_, x, m, int_size);
-
-	// Filling V0 with pointers to chunks of V1
-	copy_value(V0, V1 + (mm1 << LOG_SIGMA), int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-		V0[x[i]] = V1 + (D_[x[i]] << LOG_SIGMA);
-
-	// Filling V1 with pointers to chunks of V2
-	fillFirstLetter(V1, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-	for (int j = 0; j < SIGMA; j++)
-		V1[(i << LOG_SIGMA) + j] = V2 + ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
-
-	// Filling V2 with pointers to chunks of V3
-	fillBeginning(V2, V3, mm1, int_size_sigma, int_size);
-	copy_value(V2 + mm1_sigma, V3 + SIGMA * m2m1, int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-		V2[(mm1 << LOG_SIGMA) + x[i]] = V3 + ((D_[x[i]] + m) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
-	V2[(mm1 << LOG_SIGMA) + x[mm1]] = V3 + (mm1 << LOG_SIGMA);
-
-	// Filling V3 with pointers to chunks of V4
-	fillBeginning(V3, V4, m, int_size_sigma, int_size);
-	fillFirstLetter(V3 + m_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-	for (int j = 0; j < SIGMA; j++)
-		V3[((m + i) << LOG_SIGMA) + j] = V4 + ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
-
-	// Filling V4 with pointers to chunks of V5
-	fillBeginning(V4, V5, m2m1, int_size_sigma, int_size);
-	copy_value(V4 + (m2m1 << LOG_SIGMA), V5 + (m3m1 << LOG_SIGMA), int_size_sigma * mp1, int_size);
-	for (int i = 0; i < mm1; i++)
-		V4[(m2m1 << LOG_SIGMA) + x[i]] = V5 + ((D_[x[i]] + m2) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + (m2m1 << LOG_SIGMA)));
-	V4[(m2m1 << LOG_SIGMA) + x[mm1]] = V5 + (m2m1 << LOG_SIGMA);
-
-	// Filling V5 with shift values
-	fillBeginningFinal(V5, m2, int_size_sigma, int_size);
-	fillFirstLetterFinal(V5 + m2_sigma, m3, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = m; i < m2m1; i++)
-	for (int j = 0; j < SIGMA; j++)
-		V5[((m+i) << LOG_SIGMA) + j] = BR_[x[m2m2 - i]][j] + m2;
-
-	QueryPerformanceCounter(&prep_end);
-	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_prep32p += u;
-
-	QueryPerformanceCounter(&start);
-
-	//Search
-	int *****p1, ****p2, ***p3, **p4, *p5;
-	pos = mm2;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
-	while (true) {
-		p1 = V0[y[pos]];
-		p2 = p1[y[pos + 1]];
-		p3 = p2[y[pos + m]];
-		p4 = p3[y[pos + mp1]];
-		p5 = p4[y[pos + m2]];
-		r = p5[y[pos + m2p1]];
-		if (!r) {
-			for (k = 0; k < mm2 && y[pos - mm2 + k] == x[k]; k++);
-			if (k == mm2) {
-				if (pos >= n)
-					break;
-				count++;
-			}
-			pos += D[y[pos]];
-		}
-		else
-			pos += r;
-	}
-
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw32p += u;
 
 	return count;
 }
@@ -944,6 +846,102 @@ int MAW23P(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&_end);
 	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
 	sum_maw23p += u;
+
+	return count;
+}
+
+// The MAW32 algorithm with pointers
+int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&prep_start);
+
+	int *****V0[SIGMA], ****V1[SIGMA * P_MAX], ***V2[SIGMA * (P_MAX + 1)], **V3[SIGMA * P_MAX * 2],
+		*V4[SIGMA * (P_MAX * 2 + 1)], V5[SIGMA * P_MAX * 3]; //V5 - shift array; V0, V1, V2, V3, V4 - pointers arrays
+	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
+	int pos, r, k, count = 0, int_size = sizeof(int),
+		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
+		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		m3 = m * 3, m3m1 = m * 3 - 1,
+		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA,
+		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma * m * 2;
+
+	//Preprocessing
+	buildBMHShiftTable(D, D_, x, m);
+	buildBRShiftTable(BR_, x, m, int_size);
+
+	// Filling V0 with pointers to chunks of V1
+	copy_value(V0, V1 + (mm1 << LOG_SIGMA), int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V0[x[i]] = V1 + (D_[x[i]] << LOG_SIGMA);
+
+	// Filling V1 with pointers to chunks of V2
+	fillFirstLetter(V1, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V1[(i << LOG_SIGMA) + j] = V2 + ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+
+	// Filling V2 with pointers to chunks of V3
+	fillBeginning(V2, V3, mm1, int_size_sigma, int_size);
+	copy_value(V2 + mm1_sigma, V3 + SIGMA * m2m1, int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V2[(mm1 << LOG_SIGMA) + x[i]] = V3 + ((D_[x[i]] + m) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
+	V2[(mm1 << LOG_SIGMA) + x[mm1]] = V3 + (mm1 << LOG_SIGMA);
+
+	// Filling V3 with pointers to chunks of V4
+	fillBeginning(V3, V4, m, int_size_sigma, int_size);
+	fillFirstLetter(V3 + m_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V3[((m + i) << LOG_SIGMA) + j] = V4 + ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+
+	// Filling V4 with pointers to chunks of V5
+	fillBeginning(V4, V5, m2m1, int_size_sigma, int_size);
+	copy_value(V4 + (m2m1 << LOG_SIGMA), V5 + (m3m1 << LOG_SIGMA), int_size_sigma * mp1, int_size);
+	for (int i = 0; i < mm1; i++)
+		V4[(m2m1 << LOG_SIGMA) + x[i]] = V5 + ((D_[x[i]] + m2) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + (m2m1 << LOG_SIGMA)));
+	V4[(m2m1 << LOG_SIGMA) + x[mm1]] = V5 + (m2m1 << LOG_SIGMA);
+
+	// Filling V5 with shift values
+	fillBeginningFinal(V5, m2, int_size_sigma, int_size);
+	fillFirstLetterFinal(V5 + m2_sigma, m3, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = m; i < m2m1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V5[((m+i) << LOG_SIGMA) + j] = BR_[x[m2m2 - i]][j] + m2;
+
+	QueryPerformanceCounter(&prep_end);
+	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
+	sum_prep32p += u;
+
+	QueryPerformanceCounter(&start);
+
+	//Search
+	int *****p1, ****p2, ***p3, **p4, *p5;
+	pos = mm2;
+	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
+	while (true) {
+		p1 = V0[y[pos]];
+		p2 = p1[y[pos + 1]];
+		p3 = p2[y[pos + m]];
+		p4 = p3[y[pos + mp1]];
+		p5 = p4[y[pos + m2]];
+		r = p5[y[pos + m2p1]];
+		if (!r) {
+			for (k = 0; k < mm2 && y[pos - mm2 + k] == x[k]; k++);
+			if (k == mm2) {
+				if (pos >= n)
+					break;
+				count++;
+			}
+			pos += D[y[pos]];
+		}
+		else
+			pos += r;
+	}
+
+	QueryPerformanceCounter(&_end);
+	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw32p += u;
 
 	return count;
 }
@@ -1076,7 +1074,7 @@ int main2()
 
 int main()
 {
-	//main1();
-	main2();
+	main1();
+	//main2();
 	return 0;
 }
