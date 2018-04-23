@@ -1,4 +1,3 @@
-
 #include "stdafx.h"
 #include <memory.h>
 #include <stdlib.h>
@@ -19,8 +18,8 @@ using namespace std;
 
 #define P_MAX 200	//maximum pattern length
 #define V_MAX 20000 //maximum size of pointer and shift arrays
-
-/*#define SIGMA 8		//alphabet size
+/*
+#define SIGMA 8		//alphabet size
 #define SIGMA2 64
 #define SIGMA3 512
 #define SIGMA4 4096
@@ -52,14 +51,14 @@ using namespace std;
 #define SIGMA9 262144
 #define LOG_SIGMA 2 //logarithm of alphabet size
 #define SIGMA_DOUBLE 8
-#define SIGMA2_DOUBLE 32
+#define SIGMA2_DOUBLE 32*/
 
-#define SIGMA 32		//alphabet size
+/*#define SIGMA 32		//alphabet size
 #define SIGMA2 1024
 #define SIGMA3 32768
 #define SIGMA4 1048576
-#define LOG_SIGMA 5*/
-
+#define LOG_SIGMA 5
+*/
 #define SIGMA 64		//alphabet size
 #define SIGMA2 4096
 #define SIGMA3 262144
@@ -87,9 +86,9 @@ long long sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33;
 int maw22, maw23, maw24, maw32, maw33;
 int maw22c, maw23c, maw24c, maw32c, maw33c;
 
-long long sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw22p_mod, sum_maw24pm, sum_maw23pm, sum_maw33pm, sum_maw24pmm;
-long long sum_prep22p, sum_prep23p, sum_prep24p, sum_prep32p, sum_prep33p, sum_prep22p_mod, sum_prep24pm, sum_prep23pm, sum_prep33pm, sum_prep24pmm;
-int maw22p, maw23p, maw24p, maw32p, maw33p, maw22p_mod, maw24pm, maw23pm, maw33pm, maw24pmm;
+long long sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p, sum_maw22p_mod, sum_maw24pm, sum_maw23pm, sum_maw33pm, sum_maw24pmm;
+long long sum_prep22p, sum_prep23p, sum_prep24p, sum_prep32p, sum_prep33p, sum_prep42p, sum_prep22p_mod, sum_prep24pm, sum_prep23pm, sum_prep33pm, sum_prep24pmm;
+int maw22p, maw23p, maw24p, maw32p, maw33p, maw22p_mod, maw24pm, maw23pm, maw33pm, maw42p, maw24pmm;
 int maw22pc, maw23pc, maw24pc, maw32pc, maw33pc, maw22p_modc, maw24pmc;
 
 //a bytes pointed by c are repeated until c[0..b] is filled
@@ -1650,6 +1649,7 @@ int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
 
 	int *****V0[SIGMA], ****V1[SIGMA * P_MAX], ***V2[SIGMA * (P_MAX + 1)], **V3[SIGMA * P_MAX * 2],
 		*V4[SIGMA * (P_MAX * 2 + 1)], V5[SIGMA * P_MAX * 3]; //V5 - shift array; V0, V1, V2, V3, V4 - pointers arrays
+	int V0m[SIGMA], V1m[SIGMA * P_MAX], V2m[SIGMA * (P_MAX + 1)], V3m[SIGMA * P_MAX * 2], V4m[SIGMA * (P_MAX * 2 + 1)], V5m[SIGMA * P_MAX * 3];
 	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
 	int pos, r, k, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
@@ -1667,11 +1667,20 @@ int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
 	for (int i = 0; i < mm1; i++)
 		V0[x[i]] = V1 + (D_[x[i]] << LOG_SIGMA);
 
+	copy_value(V0m, (mm1 << LOG_SIGMA), int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V0m[x[i]] = (D_[x[i]] << LOG_SIGMA);
+
 	// Filling V1 with pointers to chunks of V2
 	fillFirstLetter(V1, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
 	for (int i = 0; i < mm1; i++)
 	for (int j = 0; j < SIGMA; j++)
 		V1[(i << LOG_SIGMA) + j] = V2 + ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+
+	fillFirstLetter(V1m, m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V1m[(i << LOG_SIGMA) + j] = ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
 
 	// Filling V2 with pointers to chunks of V3
 	fillBeginning(V2, V3, mm1, int_size_sigma, int_size);
@@ -1681,12 +1690,25 @@ int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
 	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
 	V2[(mm1 << LOG_SIGMA) + x[mm1]] = V3 + (mm1 << LOG_SIGMA);
 
+	fillBeginning(V2m, 0, mm1, int_size_sigma, int_size);
+	copy_value(V2m + mm1_sigma, SIGMA * m2m1, int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V2m[(mm1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2m + mm1_sigma));
+	V2m[(mm1 << LOG_SIGMA) + x[mm1]] = (mm1 << LOG_SIGMA);
+
 	// Filling V3 with pointers to chunks of V4
 	fillBeginning(V3, V4, m, int_size_sigma, int_size);
 	fillFirstLetter(V3 + m_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
 	for (int i = 0; i < mm1; i++)
 	for (int j = 0; j < SIGMA; j++)
 		V3[((m + i) << LOG_SIGMA) + j] = V4 + ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+
+	fillBeginning(V3m, 0, m, int_size_sigma, int_size);
+	fillFirstLetter(V3m + m_sigma, m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V3m[((m + i) << LOG_SIGMA) + j] = ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
 
 	// Filling V4 with pointers to chunks of V5
 	fillBeginning(V4, V5, m2m1, int_size_sigma, int_size);
@@ -1695,6 +1717,13 @@ int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
 		V4[(m2m1 << LOG_SIGMA) + x[i]] = V5 + ((D_[x[i]] + m2) << LOG_SIGMA);
 	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + (m2m1 << LOG_SIGMA)));
 	V4[(m2m1 << LOG_SIGMA) + x[mm1]] = V5 + (m2m1 << LOG_SIGMA);
+
+	fillBeginning(V4m, 0, m2m1, int_size_sigma, int_size);
+	copy_value(V4m + (m2m1 << LOG_SIGMA), (m3m1 << LOG_SIGMA), int_size_sigma * mp1, int_size);
+	for (int i = 0; i < mm1; i++)
+		V4m[(m2m1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m2) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4m + (m2m1 << LOG_SIGMA)));
+	V4m[(m2m1 << LOG_SIGMA) + x[mm1]] = (m2m1 << LOG_SIGMA);
 
 	// Filling V5 with shift values
 	fillBeginningFinal(V5, m2, int_size_sigma, int_size);
@@ -2050,6 +2079,166 @@ int MAW33Psmall(unsigned char *x, const int m, unsigned char *y, int n) {
 	return count;
 }
 
+// The MAW42 algorithm with pointers
+int MAW42P(unsigned char *x, const int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&prep_start);
+
+	int *******V0[SIGMA], ******V1[SIGMA * P_MAX], *****V2[SIGMA * (P_MAX + 1)], ****V3[SIGMA * P_MAX * 2], ***V4[SIGMA * (P_MAX * 2 + 1)], 
+		**V5[SIGMA * P_MAX * 3], *V6[SIGMA * (P_MAX * 3 + 1)], V7[SIGMA * P_MAX * 4]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
+	//int V0m[SIGMA], V1m[SIGMA * 4], V2m[SIGMA * (4 + 1)], V3m[SIGMA * 4 * 2], V4m[SIGMA * (4 * 2 + 1)],
+	//	V5m[SIGMA * 4 * 3 + 3], V6m[SIGMA * (4 * 3 + 1)], V7m[SIGMA * 4 * 4]; 
+	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
+	int pos, r, k, count = 0, int_size = sizeof(int),
+		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
+		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		m3 = m * 3, m3m1 = m * 3 - 1, m3p1 = m * 3 + 1,
+		m4 = m * 4, m4m1 = m * 4 - 1,
+		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA, m3_sigma = m * 3 * SIGMA,
+		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma * m * 2;
+
+	//Preprocessing
+	buildBMHShiftTable(D, D_, x, m);
+	buildBRShiftTable(BR_, x, m, int_size);
+
+	// Filling V0 with pointers to chunks of V1
+	copy_value(V0, V1 + (mm1 << LOG_SIGMA), int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V0[x[i]] = V1 + (D_[x[i]] << LOG_SIGMA);
+
+	/*copy_value(V0m, (mm1 << LOG_SIGMA), int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V0m[x[i]] = (D_[x[i]] << LOG_SIGMA);*/
+
+	// Filling V1 with pointers to chunks of V2
+	fillFirstLetter(V1, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V1[(i << LOG_SIGMA) + j] = V2 + ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+
+	/*fillFirstLetter(V1m, m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V1m[(i << LOG_SIGMA) + j] = ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);*/
+
+	// Filling V2 with pointers to chunks of V3
+	fillBeginning(V2, V3, mm1, int_size_sigma, int_size);
+	copy_value(V2 + mm1_sigma, V3 + SIGMA * m2m1, int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V2[(mm1 << LOG_SIGMA) + x[i]] = V3 + ((D_[x[i]] + m) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
+	V2[(mm1 << LOG_SIGMA) + x[mm1]] = V3 + (mm1 << LOG_SIGMA);
+
+	/*fillBeginning(V2m, 0, mm1, int_size_sigma, int_size);
+	copy_value(V2m + mm1_sigma, SIGMA * m2m1, int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		V2m[(mm1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2m + mm1_sigma));
+	V2m[(mm1 << LOG_SIGMA) + x[mm1]] = (mm1 << LOG_SIGMA);*/
+
+	// Filling V3 with pointers to chunks of V4
+	fillBeginning(V3, V4, m, int_size_sigma, int_size);
+	fillFirstLetter(V3 + m_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V3[((m + i) << LOG_SIGMA) + j] = V4 + ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+
+	/*fillBeginning(V3m, 0, m, int_size_sigma, int_size);
+	fillFirstLetter(V3m + m_sigma, m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = 0; i < mm1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V3m[((m + i) << LOG_SIGMA) + j] = ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);*/
+
+	// Filling V4 with pointers to chunks of V5
+	fillBeginning(V4, V5, m2m1, int_size_sigma, int_size);
+	copy_value(V4 + (m2m1 << LOG_SIGMA), V5 + (m3m1 << LOG_SIGMA), int_size_sigma * mp1, int_size);
+	for (int i = 0; i < mm1; i++)
+		V4[(m2m1 << LOG_SIGMA) + x[i]] = V5 + ((D_[x[i]] + m2) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + (m2m1 << LOG_SIGMA)));
+	V4[(m2m1 << LOG_SIGMA) + x[mm1]] = V5 + (m2m1 << LOG_SIGMA);
+
+	/*fillBeginning(V4m, 0, m2m1, int_size_sigma, int_size);
+	copy_value(V4m + (m2m1 << LOG_SIGMA), (m3m1 << LOG_SIGMA), int_size_sigma * mm2, int_size); //mm2
+	for (int i = 0; i < mm1; i++)
+		V4m[(m2m1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m2) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4m + (m2m1 << LOG_SIGMA)));
+	V4m[(m2m1 << LOG_SIGMA) + x[mm1]] = (m2m1 << LOG_SIGMA);*/
+
+	// Filling V5 with pointers to chunks of V6
+	fillBeginning(V5, V6, m2, int_size_sigma, int_size);
+	fillFirstLetter(V5 + m2_sigma, V6 + (m3 << LOG_SIGMA), int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = m; i < m2m1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V5[((m + i) << LOG_SIGMA) + j] = V6 + ((BR_[x[m2m2 - i]][j] + m2) << LOG_SIGMA);
+
+	/*fillBeginning(V5m, 0, m2, int_size_sigma, int_size);
+	fillFirstLetter(V5m + m2_sigma, m3<<LOG_SIGMA, int_size_sigma, int_size, x[0], int_size_sigma_m); //<<LOG_SIGMA
+	for (int i = m; i < m2m1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V5m[((m + i) << LOG_SIGMA) + j] = ((BR_[x[m2m2 - i]][j] + m2) << LOG_SIGMA);*/
+
+	// Filling V6 with pointers to chunks of V7
+	fillBeginning(V6, V7, m3m1, int_size_sigma, int_size);
+	copy_value(V6 + (m3m1 << LOG_SIGMA), V7 + (m4m1 << LOG_SIGMA), int_size_sigma * mp1, int_size); // why mp1
+	for (int i = 0; i < mm1; i++)
+		V6[(m3m1 << LOG_SIGMA) + x[i]] = V7 + ((D_[x[i]] + m3) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V6 + (m3m1 << LOG_SIGMA)));
+	V6[(m3m1 << LOG_SIGMA) + x[mm1]] = V7 + (m3m1 << LOG_SIGMA);
+
+	/*fillBeginning(V6m, 0, m3m1, int_size_sigma, int_size);
+	copy_value(V6m + (m3m1 << LOG_SIGMA), (m4m1 << LOG_SIGMA), int_size_sigma * mm2, int_size); // why mp1
+	for (int i = 0; i < mm1; i++)
+		V6m[(m3m1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m3) << LOG_SIGMA);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V6m + (m3m1 << LOG_SIGMA)));
+	V6m[(m3m1 << LOG_SIGMA) + x[mm1]] = (m3m1 << LOG_SIGMA);*/
+
+	// Filling V7 with shift values
+	fillBeginningFinal(V7, m3, int_size_sigma, int_size);
+	fillFirstLetterFinal(V7 + m3_sigma, m4, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	for (int i = m; i < m2m1; i++)
+	for (int j = 0; j < SIGMA; j++)
+		V7[((m2 + i) << LOG_SIGMA) + j] = BR_[x[m2m2 - i]][j] + m3;
+	
+	QueryPerformanceCounter(&prep_end);
+	u = (prep_end.QuadPart - prep_start.QuadPart) * 1000000 / freq.QuadPart;
+	sum_prep42p += u;
+
+	QueryPerformanceCounter(&start);
+
+	//Search
+	int *******p1, ******p2, *****p3, ****p4, ***p5, **p6, *p7;
+	pos = mm2;
+	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
+	while (true) {
+		p1 = V0[y[pos]];
+		p2 = p1[y[pos + 1]];
+		p3 = p2[y[pos + m]];
+		p4 = p3[y[pos + mp1]];
+		p5 = p4[y[pos + m2]];
+		p6 = p5[y[pos + m2p1]];
+		p7 = p6[y[pos + m3]];
+		r = p7[y[pos + m3p1]];
+		if (!r) {
+			for (k = 0; k < mm2 && y[pos - mm2 + k] == x[k]; k++);
+			if (k == mm2) {
+				if (pos >= n)
+					break;
+				count++;
+			}
+			pos += D[y[pos + 1]];
+		}
+		else
+			pos += r;
+	}
+
+	QueryPerformanceCounter(&_end);
+	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw42p += u;
+
+	return count;
+}
+
+
+
 void generateRandom() {
 
 	srand((unsigned)time(NULL));
@@ -2087,13 +2276,13 @@ void testPerformance() {
 
 	fprintf(f, "b=%d N=%d ITER=%d\n", SIGMA, N, ITER);
 
-	fprintf(f, "m,MAW22,MAW23,MAW24,MAW32,MAW33,MAW22P,MAW22p_mod,MAW23P,MAW23Pm,MAW24P,MAW24Pm,MAW24Pmm,MAW32P,MAW33P,MAW33Pm,,PREP22,PREP23,PREP24,PREP32,PREP33,PREP22P,PREP22P_mod,PREP23P,PREP23Pm,PREP24P,PREP24Pm,PREP24Pmm,PREP32P,PREP33P,PREP33Pm,,SUM22,SUM23,SUM24,SUM32,SUM33,SUM22P,SUM22P_mod,SUM23P,SUM23Pm,SUM24P,SUM24Pm,SUM24Pmm,SUM32P,SUM33P,SUM33Pm");
+	fprintf(f, "m,MAW22,MAW23,MAW24,MAW32,MAW33,MAW22P,MAW22p_mod,MAW23P,MAW23Pm,MAW24P,MAW24Pm,MAW24Pmm,MAW32P,MAW33P,MAW33Pm,MAW42P,,PREP22,PREP23,PREP24,PREP32,PREP33,PREP22P,PREP22P_mod,PREP23P,PREP23Pm,PREP24P,PREP24Pm,PREP24Pmm,PREP32P,PREP33P,PREP33Pm,PREP42P,,SUM22,SUM23,SUM24,SUM32,SUM33,SUM22P,SUM22P_mod,SUM23P,SUM23Pm,SUM24P,SUM24Pm,SUM24Pmm,SUM32P,SUM33P,SUM33Pm,SUM42P");
 	for (m = 2; m < 71; m < 10 ? m++ : m += 10) {
 		sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = 0;
 		sum_prep22 = sum_prep23 = sum_prep24 = sum_prep32 = sum_prep33 = 0;
 
-		sum_maw22p = sum_maw23p = sum_maw23pm = sum_maw24p = sum_maw24pm = sum_maw32p = sum_maw33p = sum_maw22p_mod = sum_maw33pm = sum_maw24pmm = 0;
-		sum_prep22p = sum_prep23p = sum_prep23pm = sum_prep24p = sum_prep24pm = sum_prep32p = sum_prep33p = sum_prep22p_mod = sum_prep33pm = sum_prep24pmm = 0;
+		sum_maw22p = sum_maw23p = sum_maw23pm = sum_maw24p = sum_maw24pm = sum_maw32p = sum_maw33p = sum_maw22p_mod = sum_maw33pm = sum_maw24pmm = sum_maw42p = 0;
+		sum_prep22p = sum_prep23p = sum_prep23pm = sum_prep24p = sum_prep24pm = sum_prep32p = sum_prep33p = sum_prep22p_mod = sum_prep33pm = sum_prep24pmm = sum_prep42p = 0;
 
 		int nm = N - m;
 		memcpy(T1, T, N);
@@ -2121,17 +2310,18 @@ void testPerformance() {
 			maw32p = MAW32P(P, m, T, nm);
 			maw33p = MAW33P(P, m, T, nm);
 			if (SIGMA <= 32) maw33pm = MAW33Psmall(P, m, T, nm);
+			maw42p = MAW42P(P, m, T, nm);
 		}
 		printf("b=%d m=%d\n", SIGMA, m);
-		printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, maw22p, maw22p_mod, maw23p, maw23pm, maw24p, maw24pm, maw24pmm, maw32p, maw33p, maw33pm);
-		printf("%7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld\n\n",
-			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep22p, sum_prep22p_mod, sum_prep23p, sum_prep23pm, sum_prep24p, sum_prep24pm, sum_prep24pmm, sum_prep32p, sum_prep33p, sum_prep33pm);
-		fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
-			m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw22p, sum_maw22p_mod, sum_maw23p, sum_maw23pm, sum_maw24p, sum_maw24pm, sum_maw24pmm, sum_maw32p, sum_maw33p, sum_maw33pm,
-			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep22p, sum_prep22p_mod, sum_prep23p, sum_prep23pm, sum_prep24p, sum_prep24pm, sum_prep24pmm, sum_prep32p, sum_prep33p, sum_prep33pm,
+		printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, maw22p, maw22p_mod, maw23p, maw23pm, maw24p, maw24pm, maw24pmm, maw32p, maw33p, maw33pm, maw42p);
+		printf("%7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld\n\n",
+			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep22p, sum_prep22p_mod, sum_prep23p, sum_prep23pm, sum_prep24p, sum_prep24pm, sum_prep24pmm, sum_prep32p, sum_prep33p, sum_prep33pm, sum_prep42p);
+		fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
+			m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw22p, sum_maw22p_mod, sum_maw23p, sum_maw23pm, sum_maw24p, sum_maw24pm, sum_maw24pmm, sum_maw32p, sum_maw33p, sum_maw33pm, sum_maw42p,
+			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep22p, sum_prep22p_mod, sum_prep23p, sum_prep23pm, sum_prep24p, sum_prep24pm, sum_prep24pmm, sum_prep32p, sum_prep33p, sum_prep33pm, sum_prep42p,
 			sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33, sum_maw22p + sum_prep22p, 
 			sum_maw22p_mod + sum_prep22p_mod, sum_maw23p + sum_prep23p, sum_maw23pm + sum_prep23pm, sum_maw24p + sum_prep24p, sum_maw24pm + sum_prep24pm, sum_maw24pmm + sum_prep24pmm,
-			sum_maw32p + sum_prep32p, sum_maw33p + sum_prep33p, sum_maw33pm + sum_prep33pm);
+			sum_maw32p + sum_prep32p, sum_maw33p + sum_prep33p, sum_maw33pm + sum_prep33pm, sum_maw42p + sum_prep42p);
 
 	}
 	fclose(f);
@@ -2244,7 +2434,7 @@ int simplestTest()
 	QueryPerformanceFrequency(&_freq);
 
 	N = 10000000;
-	int m = 64;
+	int m = 80;
 
 	//for (m = 4; m < 9; m++)
 	//for (int k = 0; k < 10; k++)
@@ -2259,6 +2449,7 @@ int simplestTest()
 		for (int i = 0; i < m; i++)
 			T[N - m + i] = P[i];
 
+		P[0] = 0; P[1] = 1; P[2] = 0; P[3] = 3;
 		//P[0] = 3; P[1] = 1; P[2] = 0; P[3] = 3; 
 		//P[0] = 3; P[1] = 3; P[2] = 2; P[3] = 1;
 		//P[0] = 3; P[1] = 3; P[2] = 2; P[3] = 1; P[4] = 0; P[5] = 1;
@@ -2280,18 +2471,19 @@ int simplestTest()
 		maw24p = MAW24P(P, m, T, N - m);
 		maw32p = MAW32P(P, m, T, N - m);
 		maw33p = MAW33P(P, m, T, N - m);
+		maw42p = MAW42P(P, m, T, N - m);
 
 		for (int i = 0; i < m; i++)
 			cout << char(P[i] + '0');
 		cout << " " << m << endl;
 
-		cout << "amount " << maw22 << " " << maw22p << " " << maw22p_mod << " " << maw23p << " " << maw24p << " " << maw32p << " " << maw33p << endl;
+		cout << "amount " << maw22 << " " << maw22p << " " << maw22p_mod << " " << maw23p << " " << maw24p << " " << maw32p << " " << maw33p << " " << maw42p << endl;
 
-		cout << "amount " << maw22 << "	" << maw22p << "	" << maw22p_mod << "	" << maw23p << "	" << maw24p << "	" << maw32p << "	" << maw33p << endl << endl;
-		cout << "algo   " << sum_maw22 << "	" << sum_maw22p << "	" << sum_maw22p_mod << "	" << sum_maw23p << "	" << sum_maw24p << "	" << sum_maw32p << "	" << sum_maw33p << endl;
-		cout << "prep   " << sum_prep22 << "	" << sum_prep22p << "	" << sum_prep22p_mod << "	" << sum_prep23p << "	" << sum_prep24p << "	" << sum_prep32p << "	" << sum_prep33p << endl;
+		cout << "amount " << maw22 << "	" << maw22p << "	" << maw22p_mod << "	" << maw23p << "	" << maw24p << "	" << maw32p << "	" << maw33p << "	" << maw42p << endl << endl;
+		cout << "algo   " << sum_maw22 << "	" << sum_maw22p << "	" << sum_maw22p_mod << "	" << sum_maw23p << "	" << sum_maw24p << "	" << sum_maw32p << "	" << sum_maw33p << "	" << sum_maw42p << endl;
+		cout << "prep   " << sum_prep22 << "	" << sum_prep22p << "	" << sum_prep22p_mod << "	" << sum_prep23p << "	" << sum_prep24p << "	" << sum_prep32p << "	" << sum_prep33p << "	" << sum_prep42p << endl;
 		cout << "sum    " << sum_maw22 + sum_prep22 << "	" << sum_maw22p + sum_prep22p << "	" << sum_maw22p_mod + sum_prep22p_mod << "	" << sum_maw23p + sum_prep23p << "	" <<
-			sum_maw24p + sum_prep24p << "	" << sum_maw32p + sum_prep32p << "	" << sum_maw33p + sum_prep33p << endl;
+			sum_maw24p + sum_prep24p << "	" << sum_maw32p + sum_prep32p << "	" << sum_maw33p + sum_prep33p << "	" << sum_maw42p + sum_prep42p << endl;
 
 		cout << endl << maw22c << " " << maw22pc << " " << maw22p_modc << endl;
 		
