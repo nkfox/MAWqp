@@ -1,24 +1,33 @@
-﻿#define _CRT_SECURE_NO_WARNINGS
-#include <memory.h>
-#include <stdlib.h>
+#define _CRT_SECURE_NO_WARNINGS
+#pragma comment(linker, "/STACK:4000000")
 #include <malloc.h>
-#include <math.h>
-#include <cstdio>
-#include <vector>
-#include <map>
-#include <string>
-#include <algorithm>
 #include <time.h>
-#include <conio.h>
-#include <sys/timeb.h>
 #include <windows.h>
+#include <map>
 #include <iostream>
 using namespace std;
 
 #define P_MAX 200	//maximum pattern length
 #define V_MAX 20000 //maximum size of pointer and shift arrays
-/*
-#define SIGMA 8		//alphabet size
+
+#define CURRENT_SIGMA 4
+#define BIG_SIGMA 32
+#define MIDDLE_SIGMA 16
+
+#if CURRENT_SIGMA == 4
+#define SIGMA 4	//alphabet size
+#define SIGMA2 16
+#define SIGMA3 64
+#define SIGMA4 256
+#define SIGMA5 1024
+#define SIGMA6 4096
+#define SIGMA7 16384
+#define SIGMA8 65536
+#define SIGMA9 262144
+#define LOG_SIGMA 2 //logarithm of alphabet size
+
+#elif CURRENT_SIGMA == 8
+#define SIGMA 8	//alphabet size
 #define SIGMA2 64
 #define SIGMA3 512
 #define SIGMA4 4096
@@ -29,561 +38,153 @@ using namespace std;
 #define SIGMA9 134217728
 #define LOG_SIGMA 3 //logarithm of alphabet size
 
-#define SIGMA 6		//alphabet size
-#define SIGMA2 36
-#define SIGMA3 216
-#define SIGMA4 1296
-#define SIGMA5 7776
-#define SIGMA6 46656
-#define SIGMA7 279936
-#define SIGMA8 1679616
-#define SIGMA9 10077696
-
-#define SIGMA 4		//alphabet size
-#define SIGMA2 16
-#define SIGMA3 64
-#define SIGMA4 256
-#define SIGMA5 1024
-#define SIGMA6 4096
-#define SIGMA7 16384
-#define SIGMA8 65536
-#define SIGMA9 262144
-#define LOG_SIGMA 2 //logarithm of alphabet size
-#define SIGMA_DOUBLE 8
-#define SIGMA2_DOUBLE 32*/
-
-/*#define SIGMA 32		//alphabet size
+#elif CURRENT_SIGMA == 32
+#define SIGMA 32	//alphabet size
 #define SIGMA2 1024
 #define SIGMA3 32768
 #define SIGMA4 1048576
-#define LOG_SIGMA 5
-*/
-#define SIGMA 64		//alphabet size
+#define LOG_SIGMA 5 //logarithm of alphabet size
+
+#elif CURRENT_SIGMA == 64
+#define SIGMA 64	//alphabet size
 #define SIGMA2 4096
 #define SIGMA3 262144
 #define SIGMA4 16777216
-#define LOG_SIGMA 6
+#define LOG_SIGMA 6 //logarithm of alphabet size
 
-#define SIGMA5 7776
-#define SIGMA6 46656
-#define SIGMA7 279936
-#define SIGMA8 1679616
-#define SIGMA9 10077696
+#else // CURRENT_SIGMA == 128
+#define SIGMA 128	//alphabet size
+#define SIGMA2 16384
+#define SIGMA3 2097152
+#define SIGMA4 268435456
+#define LOG_SIGMA 7 //logarithm of alphabet size
 
+#endif
+#if CURRENT_SIGMA > 16
+#define SIGMA5 1
+#define SIGMA6 1
+#define SIGMA7 1
+#define SIGMA8 1
+#define SIGMA9 1
+#endif
 
-const int TOTAL = 10000000 + 5 * P_MAX;
-unsigned char T[TOTAL], T1[TOTAL], P[P_MAX], P1[P_MAX];
-int N = TOTAL - 5 * P_MAX, ITER = 200, m = 5;
+const int TOTAL = 1000000 + 5 * P_MAX;
+unsigned char T[TOTAL], P[P_MAX];
+int N = TOTAL - 5 * P_MAX, ITER = 200, m;
 
-FILE * f;
-LARGE_INTEGER start, _end, freq, _freq, prep_start, prep_end;
-double u;
-int nm2, glob = 0;
+LARGE_INTEGER start_time, end_time, freq;
+long long algo_time;
 
-long long sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33;
-int maw22, maw23, maw24, maw32, maw33;
+long long sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw42;
+int maw22, maw23, maw24, maw32, maw33, maw42;
 
 long long sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p;
 int maw22p, maw23p, maw24p, maw32p, maw33p, maw42p;
 
-//a bytes pointed by c are repeated until c[0..b] is filled
-void mem_fill(int a, int b, unsigned char* c) {
+//-----------------Additional functions---------------------
+
+#define mult_sigma(x) (x << LOG_SIGMA)
+#define mult_sigma2(x) mult_sigma(mult_sigma(x))
+#define mult_sigma3(x) mult_sigma2(mult_sigma(x))
+#define mult_sigma4(x) mult_sigma3(mult_sigma(x))
+
+//amount_to_copy bytes pointed by pointer are repeated until pointer[0..range] is filled
+void mem_fill(int amount_to_copy, int range, unsigned char* pointer) {
 	int i;
-	for (i = a; i <= (b >> 1); i <<= 1)
-		memcpy(c + i, c, i);
-	memcpy(c + i, c, b - i);
+	for (i = amount_to_copy; i <= (range >> 1); i <<= 1)
+		memcpy(pointer + i, pointer, i);
+	memcpy(pointer + i, pointer, range - i);
 }
 
 template <class T, class U>
-void copy_value(T* pointer, U value, int length, int type_length = 1) {
+void set_array(T* pointer, U value, int length, int type_length = 1) {
 	*pointer = value;
 	mem_fill(type_length, length, (unsigned char*)pointer);
 }
 
-// The MAW22 algorithm
-int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
-
-	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, k, r, pos, count = 0;
-	int D[P_MAX];
-	unsigned char* M22 = (unsigned char *)malloc(SIGMA4); // MAW22 search table
-
-														  // Preprocessing
-														  // Build the BMH shift table D
-	for (int i = 0; i < SIGMA; i++)
-		D[i] = m;
-	for (int i = 0; i < mm1; i++)
+void build_BMH_shift_table(int* D, const unsigned char *x, const int& m, int end_index = -1) {
+	int mm1 = m - 1, int_size = sizeof(int);
+	if (end_index == -1) end_index = m;
+	set_array(D, m, mult_sigma(int_size), int_size);
+	for (int i = 0; i < end_index; i++)
 		D[x[i]] = mm1 - i;
-
-	// Fill the M22 search table
-	*M22 = m2;
-	mem_fill(1, SIGMA, M22);
-
-	*(M22 + x[0]) = m2m1;
-	mem_fill(SIGMA, SIGMA2, M22);
-
-	for (int k = 0; k < mm1; k++)
-		*(M22 + x[k] * SIGMA + x[k + 1]) = m2m2 - k;
-	mem_fill(SIGMA2, SIGMA3, M22);
-
-	copy_value(M22 + x[0] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
-	mem_fill(SIGMA3, SIGMA4, M22);
-
-	for (int k = 0; k < mm1; k++)
-		copy_value(M22 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, mm2 - k, SIGMA2);
-
-	//Search
-	pos = mm2;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
-	while (true) {
-		r = *(M22 + y[pos] * SIGMA3 + y[pos + 1] * SIGMA2 + y[pos + m] * SIGMA + y[pos + mp1]);
-		if (!r) {
-			if (pos >= n)
-				break;
-			for (k = 0; k < m && y[pos + k - mm2] == x[k]; k++);
-			if (k == m) {
-				count++;
-			}
-			pos += D[y[pos]];
-		}
-		else
-			pos += r;
-	}
-
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw22 += u;
-
-	free(M22);
-	return count;
 }
 
-// The MAW23 algorithm
-int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
-	if (m < 3) return -1;
-	QueryPerformanceCounter(&start);
-
-	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, mm3 = m - 3, mp2 = m + 2, k, r, pos, count = 0;
-	int D[P_MAX];
-	unsigned char* M23 = (unsigned char*)malloc(SIGMA6); // MAW23 search table
-
-														 // Preprocessing
-														 // Build the BMH shift table D
-	for (int i = 0; i < SIGMA; i++)
-		D[i] = m;
-	for (int i = 0; i < mm1; i++)
-		D[x[i]] = mm1 - i;
-
-	// Fill the M23 search table
-	*M23 = m2;
-	mem_fill(1, SIGMA, M23);
-
-	*(M23 + x[0]) = m2m1;
-	mem_fill(SIGMA, SIGMA2, M23);
-
-	*(M23 + x[0] * SIGMA + x[1]) = m2m2;
-	mem_fill(SIGMA2, SIGMA3, M23);
-
-	for (int k = 0; k < mm2; k++)
-		*(M23 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m2m3 - k;
-	mem_fill(SIGMA3, SIGMA4, M23);
-
-	copy_value(M23 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
-	mem_fill(SIGMA4, SIGMA5, M23);
-
-	copy_value(M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2, mm2, SIGMA2);
-	mem_fill(SIGMA5, SIGMA6, M23);
-
-	for (int k = 0; k < mm2; k++)
-		copy_value(M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, mm3 - k, SIGMA3);
-
-	//Search
-	pos = mm3;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
-	while (true) {
-		r = *(M23 + y[pos] * SIGMA5 + y[pos + 1] * SIGMA4 + y[pos + 2] * SIGMA3 + y[pos + m] * SIGMA2 + y[pos + mp1] * SIGMA + y[pos + mp2]);
-		if (!r) {
-			if (pos >= n)
-				break;
-			for (k = 0; k < m && y[pos + k - mm3] == x[k]; k++);
-			if (k == m) {
-				count++;
-			}
-			pos += D[y[pos]];
-		}
-		else
-			pos += r;
-	}
-
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw23 += u;
-
-	free(M23);
-	return count;
-}
-
-// The MAW24 algorithm
-int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
-	if (m < 4) return -1;
-	QueryPerformanceCounter(&start);
-
-	int mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm2 = m - 2, mm1 = m - 1, mm3 = m - 3, mm4 = m - 4,
-		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
-		k, r, pos, count = 0;
-	int D[P_MAX];
-	unsigned char* M24 = (unsigned char *)malloc(SIGMA8); // MAW24 search table
-
-														  // Preprocessing
-														  // Build the BMH shift table D
-	for (int i = 0; i < SIGMA; i++)
-		D[i] = m;
-	for (int i = 0; i < mm1; i++)
-		D[x[i]] = mm1 - i;
-
-	// Fill the M24 search table
-	*M24 = m2;
-	mem_fill(1, SIGMA, M24);
-
-	*(M24 + x[0]) = m2m1;
-	mem_fill(SIGMA, SIGMA2, M24);
-
-	*(M24 + x[0] * SIGMA + x[1]) = m2m2;
-	mem_fill(SIGMA2, SIGMA3, M24);
-
-	*(M24 + x[0] * SIGMA2 + x[1] * SIGMA + x[2]) = m2m3;
-	mem_fill(SIGMA3, SIGMA4, M24);
-
-	for (int k = 0; k < mm3; k++)
-		*(M24 + x[k] * SIGMA3 + x[k + 1] * SIGMA2 + x[k + 2] * SIGMA + x[k + 3]) = m2m4 - k;
-	mem_fill(SIGMA4, SIGMA5, M24);
-
-	copy_value(M24 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
-	mem_fill(SIGMA5, SIGMA6, M24);
-
-	copy_value(M24 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2, mm2, SIGMA2);
-	mem_fill(SIGMA6, SIGMA7, M24);
-
-	copy_value(M24 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3, mm3, SIGMA3);
-	mem_fill(SIGMA7, SIGMA8, M24);
-
-	for (int k = 0; k < mm3; k++)
-		copy_value(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4, mm4 - k, SIGMA4);
-
-	//Search
-	pos = mm4;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
-	while (true) {
-		r = *(M24 + y[pos] * SIGMA7 + y[pos + 1] * SIGMA6 + y[pos + 2] * SIGMA5 + y[pos + 3] * SIGMA4 +
-			y[pos + m] * SIGMA3 + y[pos + mp1] * SIGMA2 + y[pos + mp2] * SIGMA + y[pos + mp3]);
-		if (!r) {
-			if (pos >= n)
-				break;
-			for (k = 0; k < m && y[pos + k - mm4] == x[k]; k++);
-			if (k == m) {
-				count++;
-			}
-			pos += D[y[pos]];
-		}
-		else
-			pos += r;
-	}
-
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw24 += u;
-
-	free(M24);
-	return count;
-}
-
-// The MAW32 algorithm
-int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
-
-	int mp1 = m + 1, mm2 = m - 2, mm1 = m - 1, m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m3 = m * 3,
-		m3m1 = 3 * m - 1, m3m2 = 3 * m - 2, k, r, pos, count = 0;
-	int D[P_MAX];
-	unsigned char* M32 = (unsigned char *)malloc(SIGMA6); // MAW32 search table
-
-														  // Preprocessing
-														  // Build the BMH shift table D
-	for (int i = 0; i < SIGMA; i++)
-		D[i] = m;
-	for (int i = 0; i < mm1; i++)
-		D[x[i]] = mm1 - i;
-
-	// Fill the M32 search table
-	*M32 = m3;
-	mem_fill(1, SIGMA, M32);
-
-	*(M32 + x[0]) = m3m1;
-	mem_fill(SIGMA, SIGMA2, M32);
-
-	for (int k = 0; k < mm1; k++)
-		*(M32 + x[k] * SIGMA + x[k + 1]) = m3m2 - k;
-	mem_fill(SIGMA2, SIGMA3, M32);
-
-	copy_value(M32 + x[0] * SIGMA2 + x[mm1] * SIGMA, m2m1, SIGMA);
-	mem_fill(SIGMA3, SIGMA4, M32);
-
-	for (int k = 0; k < mm1; k++)
-		copy_value(M32 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, m2m2 - k, SIGMA2);
-	mem_fill(SIGMA4, SIGMA5, M32);
-
-	copy_value(M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3, mm1, SIGMA3);
-	mem_fill(SIGMA5, SIGMA6, M32);
-
-	for (int k = 0; k < mm1; k++)
-		copy_value(M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, mm2 - k, SIGMA4);
-
-	//Search
-	pos = mm2;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
-	while (true) {
-		r = *(M32 + y[pos] * SIGMA5 + y[pos + 1] * SIGMA4 + y[pos + m] * SIGMA3 + y[pos + mp1] * SIGMA2 + y[pos + m2] * SIGMA + y[pos + m2p1]);
-		if (!r) {
-			if (pos >= n)
-				break;
-			for (k = 0; k < m && y[pos + k - mm2] == x[k]; k++);
-			if (k == m) {
-				count++;
-			}
-			pos += D[y[pos]];
-		}
-		else
-			pos += r;
-	}
-
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw32 += u;
-
-	free(M32);
-	return count;
-}
-
-// The MAW33 algorithm
-int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
-	if (m < 3) return -1;
-	QueryPerformanceCounter(&start);
-
-	int mp1 = m + 1, mp2 = m + 2, mm2 = m - 2, mm3 = m - 3, mm1 = m - 1,
-		m2 = 2 * m, m2p1 = 2 * m + 1, m2p2 = 2 * m + 2, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
-		m3 = m * 3, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2, m3m3 = 3 * m - 3,
-		k, r, pos, count = 0;
-	int D[P_MAX];
-	unsigned char* M33 = (unsigned char *)malloc(SIGMA9); // MAW33 search table
-	unsigned char* point;
-
-	// Preprocessing
-	// Build the BMH shift table D
-	for (int i = 0; i < SIGMA; i++)
-		D[i] = m;
-	for (int i = 0; i < mm1; i++)
-		D[x[i]] = mm1 - i;
-
-	// Fill the M33 search table
-	*M33 = m3;
-	mem_fill(1, SIGMA, M33);
-
-	*(M33 + x[0]) = m3m1;
-	mem_fill(SIGMA, SIGMA2, M33);
-
-	*(M33 + x[0] * SIGMA + x[1]) = m3m2;
-	mem_fill(SIGMA2, SIGMA3, M33);
-
-	for (int k = 0; k < mm2; k++)
-		*(M33 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m3m3 - k;
-	mem_fill(SIGMA3, SIGMA4, M33);
-
-	copy_value(M33 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, m2m1, SIGMA);
-	mem_fill(SIGMA4, SIGMA5, M33);
-
-	copy_value(M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2, m2m2, SIGMA2);
-	mem_fill(SIGMA5, SIGMA6, M33);
-
-	for (int k = 0; k < mm2; k++)
-		copy_value(M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, m2m3 - k, SIGMA3);
-	mem_fill(SIGMA6, SIGMA7, M33);
-
-	copy_value(M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4, mm1, SIGMA4);
-	mem_fill(SIGMA7, SIGMA8, M33);
-
-	copy_value(M33 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5, mm2, SIGMA5);
-	mem_fill(SIGMA8, SIGMA9, M33);
-
-	for (int k = 0; k < mm2; k++)
-		copy_value(M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6, mm3 - k, SIGMA6);
-
-	//Search
-	pos = mm3;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
-	while (true) {
-		r = *(M33 + y[pos] * SIGMA8 + y[pos + 1] * SIGMA7 + y[pos + 2] * SIGMA6
-			+ y[pos + m] * SIGMA5 + y[pos + mp1] * SIGMA4 + y[pos + mp2] * SIGMA3
-			+ y[pos + m2] * SIGMA2 + y[pos + m2p1] * SIGMA + y[pos + m2p2]);
-		if (!r) {
-			if (pos >= n)
-				break;
-			for (k = 0; k < m && y[pos + k - mm3] == x[k]; k++);
-			if (k == m) {
-				count++;
-			}
-			pos += D[y[pos]];
-		}
-		else
-			pos += r;
-	}
-
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw33 += u;
-
-	free(M33);
-	return count;
-}
-
-//-----------------------------------MAWP--------------------------------------------------
-
-// Build BMH shift table D and modified BMH shift table D_
-void buildBMHShiftTable(int* D, int* D_, const unsigned char *x, const int& m) {
+// Build the Berry-Ravindran shift table
+template <class T>
+void build_BR_shift_table(T *BR, const unsigned char *x, const int& m, const int& int_size, int end_index = -1) {
 	int mm1 = m - 1, mm2 = m - 2;
-	for (int i = 0; i < SIGMA; i++) {
-		D[i] = m;
-		D_[i] = mm1;
-	}
-	for (int i = 0; i < mm1; i++) {
-		D[x[i]] = mm1 - i;
-		D_[x[i]] = mm2 - i;
-	}
+	if (end_index == -1) end_index = mm1;
+	set_array(BR[0], m, mult_sigma(int_size), int_size);
+	BR[0][x[0]] = mm1;
+	mem_fill(mult_sigma(int_size), mult_sigma2(int_size), (unsigned char*)BR);
+	for (int i = 0; i < end_index; i++)
+		BR[x[i]][x[i + 1]] = mm2 - i;
 }
 
-// Build the modified Berry-Ravindran shift table
-void buildBRShiftTable(int(*BR_)[SIGMA], const unsigned char *x, const int& m, const int& int_size) {
-	int mm1 = m - 1, mm2 = m - 2;
-	BR_[0][0] = m;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BR_);
-	for (int i = 0; i < SIGMA; i++)
-		BR_[i][x[0]] = mm1;
-	for (int i = 0; i < mm1; i++)
-		BR_[x[i]][x[i + 1]] = mm2 - i;
+template <class T>
+void build_modified_BR_shift_table(T *BR, const unsigned char *x, const int& m, const int& int_size) {
+	int mm3 = m - 3, m2m3 = m * 2 - 3, m2m4 = m * 2 - 4;
+	set_array(BR[0], m2m3, mult_sigma(int_size), int_size);
+	for (int j = 0; j < mm3; j++)
+		BR[0][x[j]] = m2m4 - j;
+	mem_fill(mult_sigma(int_size), mult_sigma2(int_size), (unsigned char*)BR);
+	for (int i = mm3; i < m; i++)
+		BR[x[i - mm3]][x[i]] = m2m4 - i;
 }
 
 // Build tripple shift table
 template <class T>
-void buildTrippleShiftTable(T *Tripple, const unsigned char *x, const int& m, const int& int_size) {
+void build_tripple_shift_table(T *Tripple, const unsigned char *x, const int& m, const int& int_size) {
 	int mm1 = m - 1, mm2 = m - 2, mm3 = m - 3;
-	Tripple[0][0][0] = m;
-	mem_fill(int_size, int_size * SIGMA3, (unsigned char*)Tripple);
-	for (int i = 0; i < SIGMA; i++)
-		for (int j = 0; j < SIGMA; j++)
-			Tripple[i][j][x[0]] = mm1;
-	for (int j = 0; j < SIGMA; j++)
-		Tripple[j][x[0]][x[1]] = mm2;
+	set_array(Tripple[0][0], m, mult_sigma(int_size), int_size);
+	Tripple[0][0][x[0]] = mm1;
+	mem_fill(mult_sigma(int_size), mult_sigma2(int_size), (unsigned char*)Tripple);
+	Tripple[0][x[0]][x[1]] = mm2;
+	mem_fill(mult_sigma2(int_size), mult_sigma3(int_size), (unsigned char*)Tripple);
 	for (int i = 0; i < mm2; i++)
 		Tripple[x[i]][x[i + 1]][x[i + 2]] = mm3 - i;
 }
 
+// Build quad shift table
+template <class T>
+void build_quad_shift_table(T *Quad, const unsigned char *x, const int& m, const int& int_size) {
+	int mm1 = m - 1, mm2 = m - 2, mm3 = m - 3, mm4 = m - 4;
+	set_array(Quad[0][0][0], m, mult_sigma(int_size), int_size);
+	Quad[0][0][0][x[0]] = mm1;
+	mem_fill(mult_sigma(int_size), mult_sigma2(int_size), (unsigned char*)Quad);
+	Quad[0][0][x[0]][x[1]] = mm2;
+	mem_fill(mult_sigma2(int_size), mult_sigma3(int_size), (unsigned char*)Quad);
+	Quad[0][x[0]][x[1]][x[2]] = mm3;
+	mem_fill(mult_sigma3(int_size), mult_sigma4(int_size), (unsigned char*)Quad);
+	for (int i = 0; i < mm3; i++)
+		Quad[x[i]][x[i + 1]][x[i + 2]][x[i + 3]] = mm4 - i;
+}
+
 template <class T, class U>
-void fillBeginning(T from, U to, int amount, int length, int type_length) {
+void fill_beginning(T from, U to, int amount, int length, int type_length) {
 	for (int i = 0; i < amount; i++)
-		copy_value(from + (i << LOG_SIGMA), to + (i << LOG_SIGMA), length, type_length);
+		set_array(from + mult_sigma(i), to + mult_sigma(i), length, type_length);
 }
 
 template <class T>
-void fillBeginningFinal(T from, int amount, int length, int type_length) {
+void fill_beginning_final(T from, int amount, int length, int type_length) {
 	for (int i = 0; i < amount; i++)
-		copy_value(from + (i << LOG_SIGMA), i, length, type_length);
+		set_array(from + mult_sigma(i), i, length, type_length);
 }
 
 template <class T, class U>
-void fillFirstLetter(T from, U to, int block_length, int type_length, int letter, int length) {
-	copy_value(from, to, block_length, type_length);
+void fill_first_letter(T from, U to, int block_length, int type_length, int letter, int length) {
+	set_array(from, to, block_length, type_length);
 	*(from + letter) = to - SIGMA;
 	mem_fill(block_length, length, (unsigned char*)from);
 }
 
 template <class T, class U>
-void fillFirstLetterFinal(T from, U to, int block_length, int type_length, int letter, int length) {
-	copy_value(from, to, block_length, type_length);
-	*(from + letter) = to - 1;
+void fill_first_letter_final(T from, U value, int block_length, int type_length, int letter, int length) {
+	set_array(from, value, block_length, type_length);
+	*(from + letter) = value - 1;
 	mem_fill(block_length, length, (unsigned char*)from);
-}
-
-// The MAW22 algorithm with pointers
-int MAW22P(unsigned char *x, const int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
-
-	int ***V0[SIGMA], **V1[SIGMA * P_MAX], *V2[SIGMA * (P_MAX + 1)], V3[SIGMA * P_MAX * 2]; //V3 - shift array; V0, V1, V2 - pointers arrays
-	int V0m[SIGMA], V1m[SIGMA * P_MAX], V2m[SIGMA * (P_MAX + 1)], V3m[SIGMA * P_MAX * 2];
-	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
-	int pos, r, k, count = 0, int_size = sizeof(int),
-		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2,
-		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
-		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m;
-
-	//Preprocessing
-	buildBMHShiftTable(D, D_, x, m);
-	buildBRShiftTable(BR_, x, m, int_size);
-
-	// Filling V0 with pointers to chunks of V1
-	copy_value(V0, V1 + (mm1 << LOG_SIGMA), int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-		V0[x[i]] = V1 + (D_[x[i]] << LOG_SIGMA);
-
-	copy_value(V0m, (mm1 << LOG_SIGMA), int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-		V0m[x[i]] = (D_[x[i]] << LOG_SIGMA);
-
-	// Filling V1 with pointers to chunks of V2
-	fillFirstLetter(V1, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V1[(i << LOG_SIGMA) + j] = V2 + ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
-
-	// Filling V2 with pointers to chunks of V3
-	fillBeginning(V2, V3, mm1, int_size_sigma, int_size);
-	copy_value(V2 + mm1_sigma, V3 + SIGMA * m2m1, int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-		V2[(mm1 << LOG_SIGMA) + x[i]] = V3 + ((D_[x[i]] + m) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
-	V2[(mm1 << LOG_SIGMA) + x[mm1]] = V3 + (mm1 << LOG_SIGMA);
-
-	// Filling V3 with shift values
-	fillBeginningFinal(V3, m, int_size_sigma, int_size);
-	fillFirstLetterFinal(V3 + m_sigma, m2, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = m; i < m2m1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V3[(i << LOG_SIGMA) + j] = BR_[x[m2m2 - i]][j] + m;
-
-	//Search
-	int ***p1, **p2, *p3;
-	pos = mm2;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern          /// ??? memcpy or delete this line
-	while (true) {
-		p1 = V0[y[pos]];
-		p2 = p1[y[pos + 1]];
-		p3 = p2[y[pos + m]];
-		r = p3[y[pos + mp1]];
-		if (!r) {
-			for (k = 0; k < mm2 && y[pos - mm2 + k] == x[k]; k++);
-			if (k == mm2) {
-				if (pos >= n)
-					break;
-				count++;
-			}
-			pos += D[y[pos + 1]]; // !!!
-		}
-		else
-			pos += r;
-	}
-
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw22p += u;
-
-	return count;
 }
 
 class Map {
@@ -693,121 +294,602 @@ private:
 	unsigned char* x;
 };
 
+template <class T>
+void add_multsigma(T* destination, T source_to_add, int source_to_multsigma) {
+	*destination = source_to_add + mult_sigma(source_to_multsigma);
+}
+
+template <class T>
+void cyclesigma_add_multsigma(T* destination, T source_to_add, int* source_to_multsigma) {
+	for (int j = 0; j < SIGMA; j++)
+		add_multsigma(destination + j, source_to_add, *(source_to_multsigma + j));
+}
+
+template <class T, class U>
+void add(T* destination, U* source_to_add, int value) {
+	*destination = *source_to_add + value;
+}
+
+template <class T, class U>
+void cyclesigma_add(T* destination, U source_to_add, int value) {
+	for (int j = 0; j < SIGMA; j++)
+		add(destination + j, source_to_add + j, value);
+}
+
+//-----------------------MAW--------------------------------
+
+// The MAW22 algorithm
+int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start_time);
+
+	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
+		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M22 = (unsigned char *)malloc(SIGMA4); // MAW22 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M22 search table
+	memset(M22, m2, SIGMA);
+
+	*(M22 + x[0]) = m2m1;
+	mem_fill(SIGMA, SIGMA2, M22);
+
+	for (int k = 0; k < mm1; k++)
+		*(M22 + x[k] * SIGMA + x[k + 1]) = m2m2 - k;
+	mem_fill(SIGMA2, SIGMA3, M22);
+
+	set_array(M22 + x[0] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
+	mem_fill(SIGMA3, SIGMA4, M22);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M22 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, mm2 - k, SIGMA2);
+
+	//Search
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M22 + *y_pos * SIGMA3 + *(y_pos + 1) * SIGMA2 + *(y_pos + m) * SIGMA + *(y_pos + mp1)))) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 1)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw22 += algo_time;
+
+	free(M22);
+	return count;
+}
+
+// The MAW23 algorithm
+int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
+	if (m < 3) return -1;
+	QueryPerformanceCounter(&start_time);
+
+	int mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
+		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M23 = (unsigned char*)malloc(SIGMA6); // MAW23 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M23 search table
+	memset(M23, m2, SIGMA);
+
+	*(M23 + x[0]) = m2m1;
+	mem_fill(SIGMA, SIGMA2, M23);
+
+	*(M23 + x[0] * SIGMA + x[1]) = m2m2;
+	mem_fill(SIGMA2, SIGMA3, M23);
+
+	for (int k = 0; k < mm2; k++)
+		*(M23 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m2m3 - k;
+	mem_fill(SIGMA3, SIGMA4, M23);
+
+	set_array(M23 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
+	mem_fill(SIGMA4, SIGMA5, M23);
+
+	set_array(M23 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2, mm2, SIGMA2);
+	mem_fill(SIGMA5, SIGMA6, M23);
+
+	for (int k = 0; k < mm2; k++)
+		set_array(M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, mm3 - k, SIGMA3);
+
+	//Search
+	pos = mm3, last_pos = n + mm3;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M23 + *y_pos * SIGMA5 + *(y_pos + 1) * SIGMA4 + *(y_pos + 2) * SIGMA3 + *(y_pos + m) * SIGMA2 + *(y_pos + mp1) * SIGMA + *(y_pos + mp2)))) {
+			if (!memcmp(x, y + (pos - mm3), mm3)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 2)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw23 += algo_time;
+
+	free(M23);
+	return count;
+}
+
+// The MAW24 algorithm
+int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
+	if (m < 4) return -1;
+	QueryPerformanceCounter(&start_time);
+
+	int mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3, mm4 = m - 4,
+		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M24 = (unsigned char *)malloc(SIGMA8); // MAW24 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M24 search table
+	memset(M24, m2, SIGMA);
+
+	*(M24 + x[0]) = m2m1;
+	mem_fill(SIGMA, SIGMA2, M24);
+
+	*(M24 + x[0] * SIGMA + x[1]) = m2m2;
+	mem_fill(SIGMA2, SIGMA3, M24);
+
+	*(M24 + x[0] * SIGMA2 + x[1] * SIGMA + x[2]) = m2m3;
+	mem_fill(SIGMA3, SIGMA4, M24);
+
+	for (int k = 0; k < mm3; k++)
+		*(M24 + x[k] * SIGMA3 + x[k + 1] * SIGMA2 + x[k + 2] * SIGMA + x[k + 3]) = m2m4 - k;
+	mem_fill(SIGMA4, SIGMA5, M24);
+
+	set_array(M24 + x[0] * SIGMA4 + x[mm3] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, mm1, SIGMA);
+	mem_fill(SIGMA5, SIGMA6, M24);
+
+	set_array(M24 + x[0] * SIGMA5 + x[1] * SIGMA4 + x[mm2] * SIGMA3 + x[mm1] * SIGMA2, mm2, SIGMA2);
+	mem_fill(SIGMA6, SIGMA7, M24);
+
+	set_array(M24 + x[0] * SIGMA6 + x[1] * SIGMA5 + x[2] * SIGMA4 + x[mm1] * SIGMA3, mm3, SIGMA3);
+	mem_fill(SIGMA7, SIGMA8, M24);
+
+	for (int k = 0; k < mm3; k++)
+		set_array(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4, mm4 - k, SIGMA4);
+
+	//Search
+	pos = mm4, last_pos = n + mm4;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M24 + *y_pos * SIGMA7 + *(y_pos + 1) * SIGMA6 + *(y_pos + 2) * SIGMA5 + *(y_pos + 3) * SIGMA4 +
+			*(y_pos + m) * SIGMA3 + *(y_pos + mp1) * SIGMA2 + *(y_pos + mp2) * SIGMA + *(y_pos + mp3)))) {
+			if (!memcmp(x, y + (pos - mm4), mm4)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 3)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw24 += algo_time;
+
+	free(M24);
+	return count;
+}
+
+// The MAW32 algorithm
+int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start_time);
+
+	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
+		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		m3 = m * 3, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M32 = (unsigned char *)malloc(SIGMA6); // MAW32 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M32 search table
+	memset(M32, m3, SIGMA);
+
+	*(M32 + x[0]) = m3m1;
+	mem_fill(SIGMA, SIGMA2, M32);
+
+	for (int k = 0; k < mm1; k++)
+		*(M32 + x[k] * SIGMA + x[k + 1]) = m3m2 - k;
+	mem_fill(SIGMA2, SIGMA3, M32);
+
+	set_array(M32 + x[0] * SIGMA2 + x[mm1] * SIGMA, m2m1, SIGMA);
+	mem_fill(SIGMA3, SIGMA4, M32);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M32 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, m2m2 - k, SIGMA2);
+	mem_fill(SIGMA4, SIGMA5, M32);
+
+	set_array(M32 + x[0] * SIGMA4 + x[mm1] * SIGMA3, mm1, SIGMA3);
+	mem_fill(SIGMA5, SIGMA6, M32);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, mm2 - k, SIGMA4);
+
+	//Search
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M32 + *y_pos * SIGMA5 + *(y_pos + 1) * SIGMA4 + *(y_pos + m) * SIGMA3 + *(y_pos + mp1) * SIGMA2 + *(y_pos + m2) * SIGMA + *(y_pos + m2p1)))) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 1)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw32 += algo_time;
+
+	free(M32);
+	return count;
+}
+
+// The MAW33 algorithm
+int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
+	if (m < 3) return -1;
+	QueryPerformanceCounter(&start_time);
+
+	int mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
+		m2 = 2 * m, m2p1 = 2 * m + 1, m2p2 = 2 * m + 2, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
+		m3 = m * 3, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2, m3m3 = 3 * m - 3,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M33 = (unsigned char *)malloc(SIGMA9); // MAW33 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M33 search table
+	memset(M33, m3, SIGMA);
+
+	*(M33 + x[0]) = m3m1;
+	mem_fill(SIGMA, SIGMA2, M33);
+
+	*(M33 + x[0] * SIGMA + x[1]) = m3m2;
+	mem_fill(SIGMA2, SIGMA3, M33);
+
+	for (int k = 0; k < mm2; k++)
+		*(M33 + x[k] * SIGMA2 + x[k + 1] * SIGMA + x[k + 2]) = m3m3 - k;
+	mem_fill(SIGMA3, SIGMA4, M33);
+
+	set_array(M33 + x[0] * SIGMA3 + x[mm2] * SIGMA2 + x[mm1] * SIGMA, m2m1, SIGMA);
+	mem_fill(SIGMA4, SIGMA5, M33);
+
+	set_array(M33 + x[0] * SIGMA4 + x[1] * SIGMA3 + x[mm1] * SIGMA2, m2m2, SIGMA2);
+	mem_fill(SIGMA5, SIGMA6, M33);
+
+	for (int k = 0; k < mm2; k++)
+		set_array(M33 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, m2m3 - k, SIGMA3);
+	mem_fill(SIGMA6, SIGMA7, M33);
+
+	set_array(M33 + x[0] * SIGMA6 + x[mm2] * SIGMA5 + x[mm1] * SIGMA4, mm1, SIGMA4);
+	mem_fill(SIGMA7, SIGMA8, M33);
+
+	set_array(M33 + x[0] * SIGMA7 + x[1] * SIGMA6 + x[mm1] * SIGMA5, mm2, SIGMA5);
+	mem_fill(SIGMA8, SIGMA9, M33);
+
+	for (int k = 0; k < mm2; k++)
+		set_array(M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6, mm3 - k, SIGMA6);
+
+	//Search
+	pos = mm3, last_pos = n + mm3;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M33 + *y_pos * SIGMA8 + *(y_pos + 1) * SIGMA7 + *(y_pos + 2) * SIGMA6
+			+ *(y_pos + m) * SIGMA5 + *(y_pos + mp1) * SIGMA4 + *(y_pos + mp2) * SIGMA3
+			+ *(y_pos + m2) * SIGMA2 + *(y_pos + m2p1) * SIGMA + *(y_pos + m2p2)))) {
+			if (!memcmp(x, y + (pos - mm3), mm3)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 2)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw33 += algo_time;
+
+	free(M33);
+	return count;
+}
+
+// The MAW42 algorithm
+int MAW42(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start_time);
+
+	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
+		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		m3 = 3 * m, m3p1 = 3 * m + 1, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2,
+		m4 = 4 * m, m4m1 = 4 * m - 1, m4m2 = 4 * m - 2,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M42 = (unsigned char *)malloc(SIGMA8); // MAW42 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M42 search table
+	memset(M42, m4, SIGMA);
+
+	*(M42 + x[0]) = m4m1;
+	mem_fill(SIGMA, SIGMA2, M42);
+
+	for (int k = 0; k < mm1; k++)
+		*(M42 + x[k] * SIGMA + x[k + 1]) = m4m2 - k;
+	mem_fill(SIGMA2, SIGMA3, M42);
+
+	set_array(M42 + x[0] * SIGMA2 + x[mm1] * SIGMA, m3m1, SIGMA);
+	mem_fill(SIGMA3, SIGMA4, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, m3m2 - k, SIGMA2);
+	mem_fill(SIGMA4, SIGMA5, M42);
+
+	set_array(M42 + x[0] * SIGMA4 + x[mm1] * SIGMA3, m2m1, SIGMA3);
+	mem_fill(SIGMA5, SIGMA6, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, m2m2 - k, SIGMA4);
+	mem_fill(SIGMA6, SIGMA7, M42);
+
+	set_array(M42 + x[0] * SIGMA6 + x[mm1] * SIGMA5, mm1, SIGMA5);
+	mem_fill(SIGMA7, SIGMA8, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA7 + x[k + 1] * SIGMA6, mm2 - k, SIGMA6);
+
+	//Search
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M42 + *y_pos * SIGMA7 + *(y_pos + 1) * SIGMA6 + *(y_pos + m) * SIGMA5 + *(y_pos + mp1) * SIGMA4
+			+ *(y_pos + m2) * SIGMA3 + *(y_pos + m2p1) * SIGMA2 + *(y_pos + m3) * SIGMA + *(y_pos + m3p1)))) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 1)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw42 += algo_time;
+
+	free(M42);
+	return count;
+}
+
+//-----------------------MAWP-------------------------------
+
+// The MAW22 algorithm with pointers
+int MAW22P(unsigned char *x, const int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start_time);
+
+	int ***V0[SIGMA], **V1[SIGMA * P_MAX], *V2[SIGMA * (P_MAX + 1)], V3[SIGMA * P_MAX * 2]; //V3 - shift array; V0, V1, V2 - pointers arrays
+	int D[P_MAX], Dm1[P_MAX], BRm1[SIGMA][SIGMA];
+	unsigned char *y_pos;
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
+		mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
+		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), m2m1_sigma = mult_sigma(m2m1),
+		int_size_sigma = mult_sigma(int_size), int_size_sigma_2 = int_size_sigma * 2;
+
+	//Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+	build_BMH_shift_table(Dm1, x, mm1);
+	build_BR_shift_table(BRm1, x, m, int_size);
+
+	// Filling V0 with pointers to chunks of V1
+	set_array(V0, V1 + mm1_sigma, int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		add_multsigma(V0 + x[i], V1, Dm1[x[i]]);
+
+	// Filling V1 with pointers to chunks of V2
+	fill_first_letter(V1 + mm1_sigma, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
+	for (int i = 0; i < mm1; i++)
+		cyclesigma_add_multsigma(V1 + mult_sigma(i), V2, *(BRm1 + x[mm2 - i]));
+
+	// Filling V2 with pointers to chunks of V3
+	fill_beginning(V2, V3, mm1, int_size_sigma, int_size);
+	set_array(V2 + mm1_sigma, V3 + m2m1_sigma, int_size_sigma, int_size);
+	for (int i = 0; i < mm1; i++)
+		add_multsigma(V2 + mm1_sigma + x[i], V3, Dm1[x[i]] + m);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
+	add_multsigma(V2 + mm1_sigma + x[mm1], V3, mm1);
+
+	// Filling V3 with shift values
+	fill_beginning_final(V3, m, int_size_sigma, int_size);
+	fill_first_letter_final(V3 + m2m1_sigma, m2, int_size_sigma, int_size, x[0], int_size_sigma);
+	for (int i = m; i < m2m1; i++)
+		cyclesigma_add(V3 + mult_sigma(i), *(BRm1 + x[m2m2 - i]), m);
+
+	//Search
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + m)][*(y_pos + mp1)])) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 1)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw22p += algo_time;
+
+	return count;
+}
+
 // The MAW23 algorithm with pointers
 int MAW23P(unsigned char *x, const int m, unsigned char *y, int n) {
 	if (m < 3) return -1;
 
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	int *****V0[SIGMA], ****V1[SIGMA * (P_MAX - 1)], ***V2[SIGMA * P_MAX], **V3[SIGMA * (P_MAX + 1)],
 		*V4[SIGMA * (2 * P_MAX - 1)], V5[SIGMA * P_MAX * 2]; //V5 - shift array; V0, V1, V2, V3, V4 - pointers arrays
-	int D[P_MAX], D_[P_MAX], Dm2[P_MAX], BR_[SIGMA][SIGMA], BRm2[SIGMA][SIGMA];
-	int pos, r, k, count = 0, int_size = sizeof(int),
+	int D[P_MAX], Dm1[P_MAX], Dm2[P_MAX], BRm1[SIGMA][SIGMA], BRm2[SIGMA][SIGMA];
+	unsigned char *y_pos;
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
-		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
-		m3 = m * 3, m3m1 = m * 3 - 1,
-		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA,
-		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma_m * 2;
+		m2 = 2 * m, m2m1 = m * 2 - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
+		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), mm2_sigma = mult_sigma(mm2),
+		m2m1_sigma = mult_sigma(m2m1), m2m2_sigma = mult_sigma(m2m2),
+		int_size_sigma = mult_sigma(int_size), int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_3 = int_size_sigma * 3;
 
-	for (int i = 0; i < SIGMA; i++)
-		Dm2[i] = mm2;
-	for (int i = 0; i < mm2; i++)
-		Dm2[x[i]] = mm3 - i;
-
-	BRm2[0][0] = mm1;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BRm2);
-	for (int i = 0; i < SIGMA; i++)
-		BRm2[i][x[0]] = mm2;
-	for (int i = 0; i < mm2; i++)
-		BRm2[x[i]][x[i + 1]] = mm3 - i;
-
-	BR_[0][0] = m;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BR_);
-	for (int i = 0; i < SIGMA; i++)
-		BR_[i][x[0]] = mm1;
-	for (int i = 0; i < mm2; i++)
-		BR_[x[i]][x[i + 1]] = mm2 - i;
-
+#if SIGMA <= BIG_SIGMA
+	int Tripple[SIGMA][SIGMA][SIGMA];
+#else
 	Map Tripple(m, x);
-	Tripple.init3();
+#endif
 
 	//Preprocessing
-	buildBMHShiftTable(D, D_, x, m);
-	//buildBRShiftTable(BR_, x, m, int_size);
+	build_BMH_shift_table(D, x, m, mm1);
+	build_BMH_shift_table(Dm1, x, mm1);
+	build_BMH_shift_table(Dm2, x, mm2);
+
+	build_BR_shift_table(BRm1, x, m, int_size, mm2);
+	build_BR_shift_table(BRm2, x, mm1, int_size, mm2);
+
+#if SIGMA <= BIG_SIGMA
+	build_tripple_shift_table(Tripple, x, m, int_size);
+#else
+	Tripple.init3();
+#endif
 
 	// Filling V0 with pointers to chunks of V1
-	copy_value(V0, V1 + (mm2 << LOG_SIGMA), int_size_sigma, int_size);
+	set_array(V0, V1 + mm2_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm2; i++)
-		V0[x[i]] = V1 + (Dm2[x[i]] << LOG_SIGMA);
+		add_multsigma(V0 + x[i], V1, Dm2[x[i]]);
 
 	// Filling V1 with pointers to chunks of V2
-	fillFirstLetter(V1, V2 + mm1_sigma, int_size_sigma, int_size, x[0], int_size_sigma*mm1);
 	for (int i = 0; i < mm2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V1[(i << LOG_SIGMA) + j] = V2 + ((BRm2[x[mm3 - i]][j]) << LOG_SIGMA);
+		cyclesigma_add_multsigma(V1 + mult_sigma(i), V2, BRm2[x[mm3 - i]]);
+	fill_first_letter(V1 + mm2_sigma, V2 + mm1_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 
 	// Filling V2 with pointers to chunks of V3
-	fillFirstLetter(V2, V3 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	V2[(mm2 << LOG_SIGMA) + x[1]] = V3 + ((BR_[x[0]][x[1]]) << LOG_SIGMA);
 	for (int i = 0; i < mm2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V2[(i << LOG_SIGMA) + j] = V3 + (Tripple.get3(x[mm3 - i], x[mm2 - i], j) << LOG_SIGMA);
+#if SIGMA <= BIG_SIGMA
+		cyclesigma_add_multsigma(V2 + mult_sigma(i), V3, Tripple[x[mm3 - i]][x[mm2 - i]]);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V2[mult_sigma(i) + j] = V3 + mult_sigma(Tripple.get3(x[mm3 - i], x[mm2 - i], j));
+#endif
+	fill_first_letter(V2 + mm2_sigma, V3 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add_multsigma(V2 + mm2_sigma + x[1], V3, BRm1[x[0]][x[1]]);
 
 	// Filling V3 with pointers to chunks of V4
-	fillBeginning(V3, V4, mm2, int_size_sigma, int_size);
-	copy_value(V3 + (mm2 << LOG_SIGMA), V4 + SIGMA * m2m2, int_size_sigma, int_size);
+	fill_beginning(V3, V4, mm2, int_size_sigma, int_size);
+	set_array(V3 + mm2_sigma, V4 + m2m2_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm2; i++)
-		V3[(mm2 << LOG_SIGMA) + x[i]] = V4 + ((Dm2[x[i]] + m) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma * 3, (unsigned char*)(V3 + mm2 * SIGMA));
-	V3[(mm1 << LOG_SIGMA) + x[mm2]] = V4 + (mm1 << LOG_SIGMA);
+		add_multsigma(V3 + mm2_sigma + x[i], V4, Dm2[x[i]] + m);
+	mem_fill(int_size_sigma, int_size_sigma_3, (unsigned char*)(V3 + mm2_sigma));
 	for (int i = 0; i < m; i++)
-		V3[(mm2 << LOG_SIGMA) + x[i]] = V4 + ((m2m3 - i) << LOG_SIGMA);
+		add_multsigma(V3 + mm2_sigma + x[i], V4, m2m3 - i);
+	add_multsigma(V3 + mm1_sigma + x[mm2], V4, mm1);
 
 	// Filling V4 with pointers to chunks of V5
-	fillBeginning(V4, V5, mm1, int_size_sigma, int_size);
-	fillFirstLetter(V4 + mm1 * SIGMA, V5 + m2m1 * SIGMA, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V4[((i + m) << LOG_SIGMA) + j] = V5 + ((BRm2[x[mm3 - i]][j] + m) << LOG_SIGMA);
-	for (int j = 0; j < SIGMA; j++)
-		V4[(mm1 << LOG_SIGMA) + j] = V5 + ((BRm2[x[mm2]][j] + m) << LOG_SIGMA);
-	V4[(mm1 << LOG_SIGMA) + x[mm1]] = V5 + (mm1 << LOG_SIGMA);
+	fill_beginning(V4, V5, mm1, int_size_sigma, int_size);
+	cyclesigma_add_multsigma(V4 + mm1_sigma, V5 + m_sigma, BRm2[x[mm2]]);
+	add_multsigma(V4 + mm1_sigma + x[mm1], V5, mm1);
+	for (int i = m; i < m2m2; i++)
+		cyclesigma_add_multsigma(V4 + mult_sigma(i), V5 + m_sigma, BRm2[x[m2m3 - i]]);
+	fill_first_letter(V4 + m2m2_sigma, V5 + m2m1_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 
 	//Filling V5 with shift values
-	fillBeginningFinal(V5, m, int_size_sigma, int_size);
-	fillFirstLetterFinal(V5 + m_sigma, m2, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	fill_beginning_final(V5, m, int_size_sigma, int_size);
 	for (int i = m; i < m2m2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V5[(i << LOG_SIGMA) + j] = Tripple.get3(x[m2m3 - i], x[m2m2 - i], j) + m;
-	V5[(m2m2 << LOG_SIGMA) + x[1]] = BR_[x[0]][x[1]] + m;
+#if SIGMA <= BIG_SIGMA
+		cyclesigma_add(V5 + mult_sigma(i), Tripple[x[m2m3 - i]][x[m2m2 - i]], m);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V5[mult_sigma(i) + j] = Tripple.get3(x[m2m3 - i], x[m2m2 - i], j) + m;
+#endif
+	fill_first_letter_final(V5 + m2m2_sigma, m2, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add(V5 + m2m2_sigma + x[1], BRm1[x[0]] + x[1], m);
 
 	//Search
-	int *****p1, ****p2, ***p3, **p4, *p5;
-	pos = mm3;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
+	pos = mm3, last_pos = n + mm3;
+	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
-		p1 = V0[y[pos]];
-		p2 = p1[y[pos + 1]];
-		p3 = p2[y[pos + 2]];
-		p4 = p3[y[pos + m]];
-		p5 = p4[y[pos + mp1]];
-		r = p5[y[pos + mp2]];
-		if (!r) {
-			for (k = 0; k < mm3 && y[pos - mm3 + k] == x[k]; k++);
-			if (k == mm3) {
-				if (pos >= n)
+		y_pos = y + pos;
+		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + 2)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + mp2)])) {
+			if (!memcmp(x, y + (pos - mm3), mm3)) {
+				if (pos == last_pos)
 					break;
-				count++;
+				++count;
 			}
-			pos += D[y[pos + 2]];
+			pos += D[*(y_pos + 2)];
 		}
 		else
-			pos += r;
+			pos += step;
 	}
 
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw23p += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw23p += algo_time;
 
 	return count;
 }
@@ -816,289 +898,245 @@ int MAW23P(unsigned char *x, const int m, unsigned char *y, int n) {
 int MAW24P(unsigned char *x, const int m, unsigned char *y, int n) {
 	if (m < 4) return -1;
 
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	int *******V0[SIGMA], ******V1[SIGMA * (P_MAX - 2)], *****V2[SIGMA * (P_MAX - 1)], ****V3[SIGMA * P_MAX], ***V4[SIGMA * (P_MAX + 1)],
-		**V5[SIGMA * (2 * P_MAX - 1)], *V6[SIGMA * (2 * P_MAX - 2)], V7[SIGMA * P_MAX * 2]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
-	int D[P_MAX], D_[P_MAX], Dm2[P_MAX], Dm3[P_MAX], BR_[SIGMA][SIGMA], BRm2[SIGMA][SIGMA], BRm3[SIGMA][SIGMA], BRi[SIGMA][SIGMA];
-	int pos, r, k, count = 0, int_size = sizeof(int),
+		**V5[SIGMA * (2 * P_MAX - 2)], *V6[SIGMA * (2 * P_MAX - 1)], V7[SIGMA * P_MAX * 2]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
+	int D[P_MAX], Dm1[P_MAX], Dm2[P_MAX], Dm3[P_MAX], BRm1[SIGMA][SIGMA], BRm2[SIGMA][SIGMA], BRm3[SIGMA][SIGMA], BRi[SIGMA][SIGMA];
+	unsigned char *y_pos;
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3, mm4 = m - 4,
-		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
-		m3 = m * 3, m3m1 = m * 3 - 1,
-		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA,
-		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma_m * 2;
+		m2 = 2 * m, m2m1 = m * 2 - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
+		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), mm2_sigma = mult_sigma(mm2), mm3_sigma = mult_sigma(mm3),
+		m2m1_sigma = mult_sigma(m2m1), m2m2_sigma = mult_sigma(m2m2), m2m3_sigma = mult_sigma(m2m3),
+		int_size_sigma = mult_sigma(int_size), int_size_sigma_2 = int_size_sigma * 2;
 
-	for (int i = 0; i < SIGMA; i++)
-		Dm3[i] = mm3;
-	for (int i = 0; i < mm3; i++)
-		Dm3[x[i]] = mm4 - i;
-
-	for (int i = 0; i < SIGMA; i++)
-		Dm2[i] = mm2;
-	for (int i = 0; i < mm2; i++)
-		Dm2[x[i]] = mm3 - i;
-
-	BRm3[0][0] = mm2;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BRm3);
-	for (int i = 0; i < SIGMA; i++)
-		BRm3[i][x[0]] = mm3;
-	for (int i = 0; i < mm3; i++)
-		BRm3[x[i]][x[i + 1]] = mm4 - i;
-
-	BRm2[0][0] = mm1;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BRm2);
-	for (int i = 0; i < SIGMA; i++)
-		BRm2[i][x[0]] = mm2;
-	for (int i = 0; i < mm3; i++)
-		BRm2[x[i]][x[i + 1]] = mm3 - i;
-
-	BR_[0][0] = m;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BR_);
-	for (int i = 0; i < SIGMA; i++)
-		BR_[i][x[0]] = mm1;
-	for (int i = 0; i < mm1; i++)
-		BR_[x[i]][x[i + 1]] = mm2 - i;
-
-	BRi[0][0] = m2m3;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BRi);
-	for (int i = 0; i < SIGMA; i++)
-		for (int j = 0; j < mm3; j++)
-			BRi[i][x[j]] = m2m4 - j;
-	for (int i = mm3; i < m; i++)
-		BRi[x[i - mm3]][x[i]] = m2m4 - i;
-
+#if SIGMA <= BIG_SIGMA
+	int Tripple[SIGMA][SIGMA][SIGMA];
+#else
 	Map Tripple(m, x);
-	Tripple.init3shift();
-
+#endif
+#if SIGMA <= MIDDLE_SIGMA
+	int Quad[SIGMA][SIGMA][SIGMA][SIGMA];
+#else
 	Map Quad(m, x);
-	Quad.init4();
+#endif
 
 	//Preprocessing
-	buildBMHShiftTable(D, D_, x, m);
-	//buildBRShiftTable(BR_, x, m, int_size);
-	//buildTrippleShiftTable(Tripple, x, m, int_size);
+	build_BMH_shift_table(D, x, m, mm1);
+	build_BMH_shift_table(Dm1, x, mm1);
+	build_BMH_shift_table(Dm2, x, mm2);
+	build_BMH_shift_table(Dm3, x, mm3);
+
+	build_BR_shift_table(BRm1, x, m, int_size);
+	build_BR_shift_table(BRm2, x, mm1, int_size);
+	build_BR_shift_table(BRm3, x, mm2, int_size);
+	build_modified_BR_shift_table(BRi, x, m, int_size);
+
+#if SIGMA <= BIG_SIGMA
+	build_tripple_shift_table(Tripple, x, mm1, int_size);
+#else
+	Tripple.init3shift();
+#endif
+#if SIGMA <= MIDDLE_SIGMA
+	build_quad_shift_table(Quad, x, m, int_size);
+#else
+	Quad.init4();
+#endif
 
 	// Filling V0 with pointers to chunks of V1
-	copy_value(V0, V1 + (mm3 << LOG_SIGMA), int_size_sigma, int_size);
+	set_array(V0, V1 + mm3_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm3; i++)
-		V0[x[i]] = V1 + (Dm3[x[i]] << LOG_SIGMA);
+		add_multsigma(V0 + x[i], V1, Dm3[x[i]]);
 
 	// Filling V1 with pointers to chunks of V2
-	fillFirstLetter(V1, V2 + mm2 * SIGMA, int_size_sigma, int_size, x[0], int_size_sigma*mm2);
 	for (int i = 0; i < mm3; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V1[(i << LOG_SIGMA) + j] = V2 + ((BRm3[x[mm4 - i]][j]) << LOG_SIGMA);
+		cyclesigma_add_multsigma(V1 + mult_sigma(i), V2, BRm3[x[mm4 - i]]);
+	fill_first_letter(V1 + mm3_sigma, V2 + mm2_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 
 	// Filling V2 with pointers to chunks of V3
-	fillFirstLetter(V2, V3 + mm1_sigma, int_size_sigma, int_size, x[0], int_size_sigma*mm1);
-	V2[(mm3 << LOG_SIGMA) + x[1]] = V3 + ((BRm2[x[0]][x[1]] >= mm3 ? BRm2[x[0]][x[1]] : mm3) << LOG_SIGMA);
 	for (int i = 0; i < mm3; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V2[(i << LOG_SIGMA) + j] = V3 + (Tripple.get3shift(x[mm4 - i], x[mm3 - i], j) << LOG_SIGMA);
+#if SIGMA <= BIG_SIGMA
+		cyclesigma_add_multsigma(V2 + mult_sigma(i), V3, Tripple[x[mm4 - i]][x[mm3 - i]]);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V2[mult_sigma(i) + j] = V3 + mult_sigma(Tripple.get3shift(x[mm4 - i], x[mm3 - i], j));
+#endif
+	fill_first_letter(V2 + mm3_sigma, V3 + mm1_sigma, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add_multsigma(V2 + mm3_sigma + x[1], V3, BRm2[x[0]][x[1]] >= mm3 ? BRm2[x[0]][x[1]] : mm3);
 
 	// Filling V3 with pointers to chunks of V4
-	fillFirstLetter(V3, V4 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	V3[(mm2 << LOG_SIGMA) + x[1]] = V4 + ((BR_[x[0]][x[1]] >= mm2 ? BR_[x[0]][x[1]] : mm2) << LOG_SIGMA);
-	for (int j = 0; j < SIGMA; j++)
-		V3[(mm3 << LOG_SIGMA) + j] = V4 + ((Tripple.get3shift(x[0], x[1], j) + 1) << LOG_SIGMA);
 	for (int i = 0; i < mm3; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V3[(i << LOG_SIGMA) + j] = V4 + (Quad.get4(x[mm4 - i], x[mm3 - i], x[mm2 - i], j) << LOG_SIGMA);
+#if SIGMA <= MIDDLE_SIGMA
+		cyclesigma_add_multsigma(V3 + mult_sigma(i), V4, Quad[x[mm4 - i]][x[mm3 - i]][x[mm2 - i]]);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V3[mult_sigma(i) + j] = V4 + mult_sigma(Quad.get4(x[mm4 - i], x[mm3 - i], x[mm2 - i], j));
+#endif
+#if SIGMA <= BIG_SIGMA
+	cyclesigma_add_multsigma(V3 + mm3_sigma, V4 + SIGMA, Tripple[x[0]][x[1]]);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V3[mm3_sigma + j] = V4 + SIGMA + mult_sigma(Tripple.get3shift(x[0], x[1], j));
+#endif
+	fill_first_letter(V3 + mm2_sigma, V4 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add_multsigma(V3 + mm2_sigma + x[1], V4, BRm1[x[0]][x[1]] >= mm2 ? BRm1[x[0]][x[1]] : mm2);
 
 	// Filling V4 with pointers to chunks of V5
-	fillBeginning(V4, V5, mm3, int_size_sigma, int_size);
-	copy_value(V4 + (mm3 << LOG_SIGMA), V5 + SIGMA * m2m3, int_size_sigma, int_size);
+	fill_beginning(V4, V5, mm3, int_size_sigma, int_size);
+	for (int i = mm3; i < mm1; i++)
+		cyclesigma_add_multsigma(V4 + mult_sigma(i), V5, BRi[x[mm1 - i]]);
+	set_array(V4 + mm1_sigma, V5 + m2m3_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm2; i++)
-		V4[(mm3 << LOG_SIGMA) + x[i]] = V5 + ((Dm3[x[i]] + m) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma * 4, (unsigned char*)(V4 + mm3 * SIGMA));
-	for (int i = 0; i < 2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V4[((i + mm3) << LOG_SIGMA) + j] = V5 + (BRi[x[2 - i]][j] << LOG_SIGMA);
-	V4[(mm1 << LOG_SIGMA) + x[mm3]] = V5 + (mm1 << LOG_SIGMA);
+		add_multsigma(V4 + mm1_sigma + x[i], V5, Dm3[x[i]] + m);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + mm1_sigma));
+	add_multsigma(V4 + mm1_sigma + x[mm3], V5, mm1);
 
 	// Filling V5 with pointers to chunks of V6
-	fillBeginning(V5, V6, mm2, int_size_sigma, int_size);
-	fillFirstLetter(V5 + mm2 * SIGMA, V6 + m2m2 * SIGMA, int_size_sigma, int_size, x[0], int_size_sigma*m);
-	for (int i = 0; i < mm3; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V5[((m + i) << LOG_SIGMA) + j] = V6 + ((BRm3[x[mm4 - i]][j] + m) << LOG_SIGMA);
-	for (int i = 0; i < 2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V5[((mm2 + i) << LOG_SIGMA) + j] = V6 + ((BR_[x[mm2 - i]][j] + mm2) << LOG_SIGMA);
+	fill_beginning(V5, V6, mm2, int_size_sigma, int_size);
+	for (int i = mm2; i < m; i++)
+		cyclesigma_add_multsigma(V5 + mult_sigma(i), V6 + mm2_sigma, BRm1[x[m2m4 - i]]);
+	for (int i = m; i < m2m3; i++)
+		cyclesigma_add_multsigma(V5 + mult_sigma(i), V6 + m_sigma, BRm3[x[m2m4 - i]]);
+	fill_first_letter(V5 + m2m3_sigma, V6 + m2m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 
 	// Filling V6 with pointers to chunks of V7
-	fillBeginning(V6, V7, mm1, int_size_sigma, int_size);
-	fillFirstLetter(V6 + mm1 * SIGMA, V7 + m2m1 * SIGMA, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	V6[(m2m3 << LOG_SIGMA) + x[1]] = V7 + (((BRm2[x[0]][x[1]] >= mm3 ? BRm2[x[0]][x[1]] : mm3) + m) << LOG_SIGMA);
-	for (int i = 0; i < mm3; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V6[((i + m) << LOG_SIGMA) + j] = V7 + ((Tripple.get3shift(x[mm4 - i], x[mm3 - i], j) + m) << LOG_SIGMA);
-	for (int i = 0; i < mm3; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V6[((mm1 + i) << LOG_SIGMA) + j] = V7 + ((BR_[x[mm2 - i]][j] + mm1) << LOG_SIGMA);
+	fill_beginning(V6, V7, mm1, int_size_sigma, int_size);
+	for (int i = mm1; i < m2m4; i++)
+		cyclesigma_add_multsigma(V6 + mult_sigma(i), V7 + mm1_sigma, BRm1[x[m2m3 - i]]);
+	for (int i = m; i < m2m3; i++)
+#if SIGMA <= BIG_SIGMA
+		cyclesigma_add_multsigma(V6 + mult_sigma(i), V7 + m_sigma, Tripple[x[m2m4 - i]][x[m2m3 - i]]);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V6[mult_sigma(i) + j] = V7 + m_sigma + mult_sigma(Tripple.get3shift(x[m2m4 - i], x[m2m3 - i], j));
+#endif
+	fill_first_letter(V6 + m2m3_sigma, V7 + m2m1_sigma, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add_multsigma(V6 + m2m3_sigma + x[1], V7 + m_sigma, (BRm2[x[0]][x[1]] >= mm3 ? BRm2[x[0]][x[1]] : mm3));
 
 	//Filling V7 with shift values
-	fillBeginningFinal(V7, m, int_size_sigma, int_size);
-	fillFirstLetterFinal(V7 + m_sigma, m2, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	V7[(m2m2 << LOG_SIGMA) + x[1]] = (BR_[x[0]][x[1]] >= mm2 ? BR_[x[0]][x[1]] : mm2) + m;
+	fill_beginning_final(V7, m, int_size_sigma, int_size);
+	for (int i = m; i < m2m4; i++)
+		cyclesigma_add(V7 + mult_sigma(i), BRm1[x[m2m2 - i]], m);
+#if SIGMA <= BIG_SIGMA
+	cyclesigma_add(V7 + m2m3_sigma, Tripple[x[0]][x[1]], mp1);
+#else
 	for (int j = 0; j < SIGMA; j++)
-		V7[(m2m3 << LOG_SIGMA) + j] = Tripple.get3shift(x[0], x[1], j) + mp1;
+		V7[m2m3_sigma + j] = Tripple.get3shift(x[0], x[1], j) + mp1;
+#endif
 	for (int i = m; i < m2m3; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V7[(i << LOG_SIGMA) + j] = Quad.get4(x[m2m4 - i], x[m2m3 - i], x[m2m2 - i], j) + m;
-	for (int i = 0; i < mm4; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V7[((m + i) << LOG_SIGMA) + j] = BR_[x[mm2 - i]][j] + m;
+#if SIGMA <= MIDDLE_SIGMA
+		cyclesigma_add(V7 + mult_sigma(i), Quad[x[m2m4 - i]][x[m2m3 - i]][x[m2m2 - i]], m);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V7[mult_sigma(i) + j] = Quad.get4(x[m2m4 - i], x[m2m3 - i], x[m2m2 - i], j) + m;
+#endif
+	fill_first_letter_final(V7 + m2m2_sigma, m2, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add(V7 + m2m2_sigma + x[1], BRm1[x[0]][x[1]] >= mm2 ? BRm1[x[0]] + x[1] : &mm2, m);
 
 	//Search
-	int *******p1, ******p2, *****p3, ****p4, ***p5, **p6, *p7;
-	pos = mm4;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
+	pos = mm4, last_pos = n + mm4;
+	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
-		p1 = V0[y[pos]]; // y[pos] заменить на указатель ???
-		p2 = p1[y[pos + 1]];
-		p3 = p2[y[pos + 2]];
-		p4 = p3[y[pos + 3]];
-		p5 = p4[y[pos + m]];
-		p6 = p5[y[pos + mp1]];
-		p7 = p6[y[pos + mp2]];
-		r = p7[y[pos + mp3]];
-		if (!r) {
-			for (k = 0; k < mm4 && y[pos - mm4 + k] == x[k]; k++);
-			if (k == mm4) {
-				if (pos >= n)
+		y_pos = y + pos;
+		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + 2)][*(y_pos + 3)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + mp2)][*(y_pos + mp3)])) {
+			if (!memcmp(x, y + (pos - mm4), mm4)) {
+				if (pos == last_pos)
 					break;
-				count++;
+				++count;
 			}
-			pos += D[y[pos + 3]];
+			pos += D[*(y_pos + 3)];
 		}
 		else
-			pos += r;
+			pos += step;
 	}
 
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw24p += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw24p += algo_time;
 
 	return count;
 }
 
 // The MAW32 algorithm with pointers
 int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	int *****V0[SIGMA], ****V1[SIGMA * P_MAX], ***V2[SIGMA * (P_MAX + 1)], **V3[SIGMA * P_MAX * 2],
 		*V4[SIGMA * (P_MAX * 2 + 1)], V5[SIGMA * P_MAX * 3]; //V5 - shift array; V0, V1, V2, V3, V4 - pointers arrays
-	int V0m[SIGMA], V1m[SIGMA * P_MAX], V2m[SIGMA * (P_MAX + 1)], V3m[SIGMA * P_MAX * 2], V4m[SIGMA * (P_MAX * 2 + 1)], V5m[SIGMA * P_MAX * 3];
-	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
-	int pos, r, k, count = 0, int_size = sizeof(int),
-		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
+	int D[P_MAX], Dm1[P_MAX], BRm1[SIGMA][SIGMA];
+	unsigned char *y_pos;
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
+		mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
-		m3 = m * 3, m3m1 = m * 3 - 1,
-		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA,
-		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma * m * 2;
+		m3 = m * 3, m3m1 = m * 3 - 1, m3m2 = m * 3 - 2,
+		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), m2_sigma = mult_sigma(m2),
+		m2m1_sigma = mult_sigma(m2m1), m3m1_sigma = mult_sigma(m3m1),
+		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2;
 
 	//Preprocessing
-	buildBMHShiftTable(D, D_, x, m);
-	buildBRShiftTable(BR_, x, m, int_size);
+	build_BMH_shift_table(D, x, m, mm1);
+	build_BMH_shift_table(Dm1, x, mm1);
+	build_BR_shift_table(BRm1, x, m, int_size);
 
 	// Filling V0 with pointers to chunks of V1
-	copy_value(V0, V1 + (mm1 << LOG_SIGMA), int_size_sigma, int_size);
+	set_array(V0, V1 + mm1_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm1; i++)
-		V0[x[i]] = V1 + (D_[x[i]] << LOG_SIGMA);
-
-	copy_value(V0m, (mm1 << LOG_SIGMA), int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-		V0m[x[i]] = (D_[x[i]] << LOG_SIGMA);
+		add_multsigma(V0 + x[i], V1, Dm1[x[i]]);
 
 	// Filling V1 with pointers to chunks of V2
-	fillFirstLetter(V1, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	fill_first_letter(V1 + mm1_sigma, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 	for (int i = 0; i < mm1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V1[(i << LOG_SIGMA) + j] = V2 + ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
-
-	fillFirstLetter(V1m, m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V1m[(i << LOG_SIGMA) + j] = ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+		cyclesigma_add_multsigma(V1 + mult_sigma(i), V2, *(BRm1 + x[mm2 - i]));
 
 	// Filling V2 with pointers to chunks of V3
-	fillBeginning(V2, V3, mm1, int_size_sigma, int_size);
-	copy_value(V2 + mm1_sigma, V3 + SIGMA * m2m1, int_size_sigma, int_size);
+	fill_beginning(V2, V3, mm1, int_size_sigma, int_size);
+	set_array(V2 + mm1_sigma, V3 + m2m1_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm1; i++)
-		V2[(mm1 << LOG_SIGMA) + x[i]] = V3 + ((D_[x[i]] + m) << LOG_SIGMA);
+		add_multsigma(V2 + mm1_sigma + x[i], V3, Dm1[x[i]] + m);
 	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
-	V2[(mm1 << LOG_SIGMA) + x[mm1]] = V3 + (mm1 << LOG_SIGMA);
-
-	fillBeginning(V2m, 0, mm1, int_size_sigma, int_size);
-	copy_value(V2m + mm1_sigma, SIGMA * m2m1, int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-		V2m[(mm1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2m + mm1_sigma));
-	V2m[(mm1 << LOG_SIGMA) + x[mm1]] = (mm1 << LOG_SIGMA);
+	add_multsigma(V2 + mm1_sigma + x[mm1], V3, mm1);
 
 	// Filling V3 with pointers to chunks of V4
-	fillBeginning(V3, V4, m, int_size_sigma, int_size);
-	fillFirstLetter(V3 + m_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V3[((m + i) << LOG_SIGMA) + j] = V4 + ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
-
-	fillBeginning(V3m, 0, m, int_size_sigma, int_size);
-	fillFirstLetter(V3m + m_sigma, m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V3m[((m + i) << LOG_SIGMA) + j] = ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
+	fill_beginning(V3, V4, m, int_size_sigma, int_size);
+	fill_first_letter(V3 + m2m1_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
+	for (int i = m; i < m2m1; i++)
+		cyclesigma_add_multsigma(V3 + mult_sigma(i), V4 + m_sigma, BRm1[x[m2m2 - i]]);
 
 	// Filling V4 with pointers to chunks of V5
-	fillBeginning(V4, V5, m2m1, int_size_sigma, int_size);
-	copy_value(V4 + (m2m1 << LOG_SIGMA), V5 + (m3m1 << LOG_SIGMA), int_size_sigma * mp1, int_size);
+	fill_beginning(V4, V5, m2m1, int_size_sigma, int_size);
+	set_array(V4 + m2m1_sigma, V5 + m3m1_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm1; i++)
-		V4[(m2m1 << LOG_SIGMA) + x[i]] = V5 + ((D_[x[i]] + m2) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + (m2m1 << LOG_SIGMA)));
-	V4[(m2m1 << LOG_SIGMA) + x[mm1]] = V5 + (m2m1 << LOG_SIGMA);
-
-	fillBeginning(V4m, 0, m2m1, int_size_sigma, int_size);
-	copy_value(V4m + (m2m1 << LOG_SIGMA), (m3m1 << LOG_SIGMA), int_size_sigma * mp1, int_size);
-	for (int i = 0; i < mm1; i++)
-		V4m[(m2m1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m2) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4m + (m2m1 << LOG_SIGMA)));
-	V4m[(m2m1 << LOG_SIGMA) + x[mm1]] = (m2m1 << LOG_SIGMA);
+		add_multsigma(V4 + m2m1_sigma + x[i], V5 + m2_sigma, Dm1[x[i]]);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + m2m1_sigma));
+	add_multsigma(V4 + m2m1_sigma + x[mm1], V5, m2m1);
 
 	// Filling V5 with shift values
-	fillBeginningFinal(V5, m2, int_size_sigma, int_size);
-	fillFirstLetterFinal(V5 + m2_sigma, m3, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = m; i < m2m1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V5[((m + i) << LOG_SIGMA) + j] = BR_[x[m2m2 - i]][j] + m2;
+	fill_beginning_final(V5, m2, int_size_sigma, int_size);
+	fill_first_letter_final(V5 + m3m1_sigma, m3, int_size_sigma, int_size, x[0], int_size_sigma);
+	for (int i = m2; i < m3m1; i++)
+		cyclesigma_add(V5 + mult_sigma(i), BRm1[x[m3m2 - i]], m2);
 
 	//Search
-	int *****p1, ****p2, ***p3, **p4, *p5;
-	pos = mm2;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
-		p1 = V0[y[pos]];
-		p2 = p1[y[pos + 1]];
-		p3 = p2[y[pos + m]];
-		p4 = p3[y[pos + mp1]];
-		p5 = p4[y[pos + m2]];
-		r = p5[y[pos + m2p1]];
-		if (!r) {
-			for (k = 0; k < mm2 && y[pos - mm2 + k] == x[k]; k++);
-			if (k == mm2) {
-				if (pos >= n)
+		y_pos = y + pos;
+		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + m2)][*(y_pos + m2p1)])) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
 					break;
-				count++;
+				++count;
 			}
-			pos += D[y[pos + 1]];
+			pos += D[*(y_pos + 1)];
 		}
 		else
-			pos += r;
+			pos += step;
 	}
 
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw32p += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw32p += algo_time;
 
 	return count;
 }
@@ -1107,300 +1145,241 @@ int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
 int MAW33P(unsigned char *x, const int m, unsigned char *y, int n) {
 	if (m < 3) return -1;
 
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
-	int ********V0[SIGMA], *******V1[SIGMA * (P_MAX - 1)], ******V2[SIGMA * P_MAX], *****V3[SIGMA * (P_MAX + 1)], ****V4[SIGMA * (2 * P_MAX - 1)], ***V5[SIGMA * P_MAX * 2],
+	int ********V0[SIGMA], *******V1[SIGMA * (P_MAX - 1)], ******V2[SIGMA * P_MAX],
+		*****V3[SIGMA * (P_MAX + 1)], ****V4[SIGMA * (2 * P_MAX - 1)], ***V5[SIGMA * P_MAX * 2],
 		**V6[SIGMA * (P_MAX * 2 + 1)], *V7[SIGMA * (3 * P_MAX - 1)], V8[SIGMA * P_MAX * 3]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
-	int D[P_MAX], D_[P_MAX], Dm2[P_MAX], BR_[SIGMA][SIGMA], BRm2[SIGMA][SIGMA];
-	int pos, r, k, count = 0, int_size = sizeof(int),
+	int D[P_MAX], Dm1[P_MAX], Dm2[P_MAX], BRm1[SIGMA][SIGMA], BRm2[SIGMA][SIGMA];
+	unsigned char *y_pos;
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2p2 = 2 * m + 2, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
 		m3 = m * 3, m3m1 = m * 3 - 1, m3m2 = m * 3 - 2, m3m3 = m * 3 - 3,
-		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA,
-		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma * m * 2;
+		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), mm2_sigma = mult_sigma(mm2),
+		m2_sigma = mult_sigma(m2), m2m1_sigma = mult_sigma(m2m1), m2m2_sigma = mult_sigma(m2m2),
+		m3m1_sigma = mult_sigma(m3m1), m3m2_sigma = mult_sigma(m3m2),
+		int_size_sigma = mult_sigma(int_size), int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_3 = int_size_sigma * 3;
 
-	for (int i = 0; i < SIGMA; i++)
-		Dm2[i] = mm2;
-	for (int i = 0; i < mm2; i++)
-		Dm2[x[i]] = mm3 - i;
-
-	BRm2[0][0] = mm1;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BRm2);
-	for (int i = 0; i < SIGMA; i++)
-		BRm2[i][x[0]] = mm2;
-	for (int i = 0; i < mm2; i++)
-		BRm2[x[i]][x[i + 1]] = mm3 - i;
-
-	BR_[0][0] = m;
-	mem_fill(int_size, int_size * SIGMA2, (unsigned char*)BR_);
-	for (int i = 0; i < SIGMA; i++)
-		BR_[i][x[0]] = mm1;
-	for (int i = 0; i < mm2; i++)
-		BR_[x[i]][x[i + 1]] = mm2 - i;
-
+#if SIGMA <= BIG_SIGMA
+	int Tripple[SIGMA][SIGMA][SIGMA];
+#else
 	Map Tripple(m, x);
-	Tripple.init3();
+#endif
 
 	//Preprocessing
-	buildBMHShiftTable(D, D_, x, m);
-	//buildBRShiftTable(BR_, x, m, int_size);
+	build_BMH_shift_table(D, x, m, mm1);
+	build_BMH_shift_table(Dm1, x, mm1);
+	build_BMH_shift_table(Dm2, x, mm2);
+
+	build_BR_shift_table(BRm1, x, m, int_size, mm2);
+	build_BR_shift_table(BRm2, x, mm1, int_size, mm2);
+
+#if SIGMA <= BIG_SIGMA
+	build_tripple_shift_table(Tripple, x, m, int_size);
+#else
+	Tripple.init3();
+#endif
 
 	// Filling V0 with pointers to chunks of V1
-	copy_value(V0, V1 + (mm2 << LOG_SIGMA), int_size_sigma, int_size);
+	set_array(V0, V1 + mm2_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm2; i++)
-		V0[x[i]] = V1 + (Dm2[x[i]] << LOG_SIGMA);
+		add_multsigma(V0 + x[i], V1, Dm2[x[i]]);
 
 	// Filling V1 with pointers to chunks of V2
-	fillFirstLetter(V1, V2 + mm1_sigma, int_size_sigma, int_size, x[0], int_size_sigma*mm1);
 	for (int i = 0; i < mm2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V1[(i << LOG_SIGMA) + j] = V2 + ((BRm2[x[mm3 - i]][j]) << LOG_SIGMA);
+		cyclesigma_add_multsigma(V1 + mult_sigma(i), V2, BRm2[x[mm3 - i]]);
+	fill_first_letter(V1 + mm2_sigma, V2 + mm1_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 
 	// Filling V2 with pointers to chunks of V3
-	fillFirstLetter(V2, V3 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	V2[(mm2 << LOG_SIGMA) + x[1]] = V3 + ((BR_[x[0]][x[1]]) << LOG_SIGMA);
 	for (int i = 0; i < mm2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V2[(i << LOG_SIGMA) + j] = V3 + (Tripple.get3(x[mm3 - i], x[mm2 - i], j) << LOG_SIGMA);
+#if SIGMA <= BIG_SIGMA
+		cyclesigma_add_multsigma(V2 + mult_sigma(i), V3, Tripple[x[mm3 - i]][x[mm2 - i]]);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V2[mult_sigma(i) + j] = V3 + mult_sigma(Tripple.get3(x[mm3 - i], x[mm2 - i], j));
+#endif
+	fill_first_letter(V2 + mm2_sigma, V3 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add_multsigma(V2 + mm2_sigma + x[1], V3, BRm1[x[0]][x[1]]);
 
 	// Filling V3 with pointers to chunks of V4
-	fillBeginning(V3, V4, mm2, int_size_sigma, int_size);
-	copy_value(V3 + (mm2 << LOG_SIGMA), V4 + SIGMA * m2m2, int_size_sigma, int_size);
+	fill_beginning(V3, V4, mm2, int_size_sigma, int_size);
+	set_array(V3 + mm2_sigma, V4 + m2m2_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm2; i++)
-		V3[(mm2 << LOG_SIGMA) + x[i]] = V4 + ((Dm2[x[i]] + m) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma * 3, (unsigned char*)(V3 + mm2 * SIGMA));
-	V3[(mm1 << LOG_SIGMA) + x[mm2]] = V4 + (mm1 << LOG_SIGMA);
+		add_multsigma(V3 + mm2_sigma + x[i], V4, Dm2[x[i]] + m);
+	mem_fill(int_size_sigma, int_size_sigma_3, (unsigned char*)(V3 + mm2_sigma));
 	for (int i = 0; i < m; i++)
-		V3[(mm2 << LOG_SIGMA) + x[i]] = V4 + ((m2m3 - i) << LOG_SIGMA);
+		add_multsigma(V3 + mm2_sigma + x[i], V4, m2m3 - i);
+	add_multsigma(V3 + mm1_sigma + x[mm2], V4, mm1);
 
 	// Filling V4 with pointers to chunks of V5
-	fillBeginning(V4, V5, mm1, int_size_sigma, int_size);
-	fillFirstLetter(V4 + mm1 * SIGMA, V5 + m2m1 * SIGMA, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V4[((i + m) << LOG_SIGMA) + j] = V5 + ((BRm2[x[mm3 - i]][j] + m) << LOG_SIGMA);
-	for (int j = 0; j < SIGMA; j++)
-		V4[(mm1 << LOG_SIGMA) + j] = V5 + ((BRm2[x[mm2]][j] + m) << LOG_SIGMA);
-	V4[(mm1 << LOG_SIGMA) + x[mm1]] = V5 + (mm1 << LOG_SIGMA);
-
-	//Filling V5 with shift values
-	fillBeginning(V5, V6, m, int_size_sigma, int_size);
-	fillFirstLetter(V5 + m_sigma, V6 + m2 * SIGMA, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	fill_beginning(V4, V5, mm1, int_size_sigma, int_size);
+	cyclesigma_add_multsigma(V4 + mm1_sigma, V5 + m_sigma, BRm2[x[mm2]]);
+	add_multsigma(V4 + mm1_sigma + x[mm1], V5, mm1);
 	for (int i = m; i < m2m2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V5[(i << LOG_SIGMA) + j] = V6 + ((Tripple.get3(x[m2m3 - i], x[m2m2 - i], j) + m) << LOG_SIGMA);
-	V5[(m2m2 << LOG_SIGMA) + x[1]] = V6 + ((BR_[x[0]][x[1]] + m) << LOG_SIGMA);
+		cyclesigma_add_multsigma(V4 + mult_sigma(i), V5 + m_sigma, BRm2[x[m2m3 - i]]);
+	fill_first_letter(V4 + m2m2_sigma, V5 + m2m1_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
+
+	// Filling V5 with pointers to chunks of V6
+	fill_beginning(V5, V6, m, int_size_sigma, int_size);
+	for (int i = m; i < m2m2; i++)
+#if SIGMA <= BIG_SIGMA
+		cyclesigma_add_multsigma(V5 + mult_sigma(i), V6 + m_sigma, Tripple[x[m2m3 - i]][x[m2m2 - i]]);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V5[mult_sigma(i) + j] = V6 + m_sigma + mult_sigma(Tripple.get3(x[m2m3 - i], x[m2m2 - i], j));
+#endif
+	fill_first_letter(V5 + m2m2_sigma, V6 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add_multsigma(V5 + m2m2_sigma + x[1], V6 + m_sigma, BRm1[x[0]][x[1]]);
 
 	// Filling V6 with pointers to chunks of V7
-	fillBeginning(V6, V7, m2m2, int_size_sigma, int_size);
-	copy_value(V6 + (m2m2 << LOG_SIGMA), V7 + SIGMA * m3m2, int_size_sigma, int_size);
+	fill_beginning(V6, V7, m2m2, int_size_sigma, int_size);
+	set_array(V6 + m2m2_sigma, V7 + m3m2_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm2; i++)
-		V6[((mm2 + m) << LOG_SIGMA) + x[i]] = V7 + ((Dm2[x[i]] + m2) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma * 3, (unsigned char*)(V6 + m2m2 * SIGMA));
-	V6[(m2m1 << LOG_SIGMA) + x[mm2]] = V7 + (m2m1 << LOG_SIGMA);
+		add_multsigma(V6 + m2m2_sigma + x[i], V7 + m2_sigma, Dm2[x[i]]);
+	mem_fill(int_size_sigma, int_size_sigma_3, (unsigned char*)(V6 + m2m2_sigma));
+	add_multsigma(V6 + m2m1_sigma + x[mm2], V7, m2m1);
 	for (int i = 0; i < m; i++)
-		V6[(m2m2 << LOG_SIGMA) + x[i]] = V7 + ((m3m3 - i) << LOG_SIGMA);
+		add_multsigma(V6 + m2m2_sigma + x[i], V7, m3m3 - i);
 
 	// Filling V7 with pointers to chunks of V8
-	fillBeginning(V7, V8, m2m1, int_size_sigma, int_size);
-	fillFirstLetter(V7 + m2m1 * SIGMA, V8 + m3m1 * SIGMA, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V7[((i + m2) << LOG_SIGMA) + j] = V8 + ((BRm2[x[mm3 - i]][j] + m2) << LOG_SIGMA);
-	for (int j = 0; j < SIGMA; j++)
-		V7[(m2m1 << LOG_SIGMA) + j] = V8 + ((BRm2[x[mm2]][j] + m2) << LOG_SIGMA);
-	V7[(m2m1 << LOG_SIGMA) + x[mm1]] = V8 + (m2m1 << LOG_SIGMA);
+	fill_beginning(V7, V8, m2m1, int_size_sigma, int_size);
+	cyclesigma_add_multsigma(V7 + m2m1_sigma, V8 + m2_sigma, BRm2[x[mm2]]);
+	add_multsigma(V7 + m2m1_sigma + x[mm1], V8, m2m1);
+	for (int i = m2; i < m3m2; i++)
+		cyclesigma_add_multsigma(V7 + mult_sigma(i), V8 + m2_sigma, BRm2[x[m3m3 - i]]);
+	fill_first_letter(V7 + m3m2_sigma, V8 + m3m1_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 
 	//Filling V8 with shift values
-	fillBeginningFinal(V8, m2, int_size_sigma, int_size);
-	fillFirstLetterFinal(V8 + m2_sigma, m3, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	fill_beginning_final(V8, m2, int_size_sigma, int_size);
 	for (int i = m2; i < m3m2; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V8[(i << LOG_SIGMA) + j] = Tripple.get3(x[m3m3 - i], x[m3m2 - i], j) + m2;
-	V8[(m3m2 << LOG_SIGMA) + x[1]] = BR_[x[0]][x[1]] + m2;
+#if SIGMA <= BIG_SIGMA
+		cyclesigma_add(V8 + mult_sigma(i), Tripple[x[m3m3 - i]][x[m3m2 - i]], m2);
+#else
+	for (int j = 0; j < SIGMA; j++)
+		V8[mult_sigma(i) + j] = Tripple.get3(x[m3m3 - i], x[m3m2 - i], j) + m2;
+#endif
+	fill_first_letter_final(V8 + m3m2_sigma, m3, int_size_sigma, int_size, x[0], int_size_sigma_2);
+	add(V8 + m3m2_sigma + x[1], BRm1[x[0]] + x[1], m2);
 
 	//Search
-	int ********p1, *******p2, ******p3, *****p4, ****p5, ***p6, **p7, *p8;
-	pos = mm2;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
+	pos = mm3, last_pos = n + mm3;
+	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
-		p1 = V0[y[pos]];
-		p2 = p1[y[pos + 1]];
-		p3 = p2[y[pos + 2]];
-		p4 = p3[y[pos + m]];
-		p5 = p4[y[pos + mp1]];
-		p6 = p5[y[pos + mp2]];
-		p7 = p6[y[pos + m2]];
-		p8 = p7[y[pos + m2p1]];
-		r = p8[y[pos + m2p2]];
-		if (!r) {
-			for (k = 0; k < mm3 && y[pos - mm3 + k] == x[k]; k++);
-			if (k == mm3) {
-				if (pos >= n)
+		y_pos = y + pos;
+		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + 2)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + mp2)][*(y_pos + m2)][*(y_pos + m2p1)][*(y_pos + m2p2)])) {
+			if (!memcmp(x, y + (pos - mm3), mm3)) {
+				if (pos == last_pos)
 					break;
-				count++;
+				++count;
 			}
-			pos += D[y[pos + 2]];
+			pos += D[*(y_pos + 2)];
 		}
 		else
-			pos += r;
+			pos += step;
 	}
 
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw33p += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw33p += algo_time;
 
 	return count;
 }
 
 // The MAW42 algorithm with pointers
 int MAW42P(unsigned char *x, const int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	int *******V0[SIGMA], ******V1[SIGMA * P_MAX], *****V2[SIGMA * (P_MAX + 1)], ****V3[SIGMA * P_MAX * 2], ***V4[SIGMA * (P_MAX * 2 + 1)],
 		**V5[SIGMA * P_MAX * 3], *V6[SIGMA * (P_MAX * 3 + 1)], V7[SIGMA * P_MAX * 4]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
-																					  //int V0m[SIGMA], V1m[SIGMA * 4], V2m[SIGMA * (4 + 1)], V3m[SIGMA * 4 * 2], V4m[SIGMA * (4 * 2 + 1)],
-																					  //	V5m[SIGMA * 4 * 3 + 3], V6m[SIGMA * (4 * 3 + 1)], V7m[SIGMA * 4 * 4]; 
-	int D[P_MAX], D_[P_MAX], BR_[SIGMA][SIGMA];
-	int pos, r, k, count = 0, int_size = sizeof(int),
-		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
+	int D[P_MAX], Dm1[P_MAX], BRm1[SIGMA][SIGMA];
+	unsigned char *y_pos;
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
+		mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
-		m3 = m * 3, m3m1 = m * 3 - 1, m3p1 = m * 3 + 1,
-		m4 = m * 4, m4m1 = m * 4 - 1,
-		m_sigma = m * SIGMA, mm1_sigma = mm1 * SIGMA, m2_sigma = m * 2 * SIGMA, m3_sigma = m * 3 * SIGMA,
-		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2, int_size_sigma_m = int_size_sigma * m, int_size_sigma_m2 = int_size_sigma * m * 2;
+		m3 = m * 3, m3p1 = m * 3 + 1, m3m1 = m * 3 - 1, m3m2 = m * 3 - 2,
+		m4 = m * 4, m4m1 = m * 4 - 1, m4m2 = m * 4 - 2,
+		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), m2_sigma = mult_sigma(m2), m2m1_sigma = mult_sigma(m2m1),
+		m3_sigma = mult_sigma(m3), m3m1_sigma = mult_sigma(m3m1), m4m1_sigma = mult_sigma(m4m1),
+		int_size_sigma = int_size * SIGMA, int_size_sigma_2 = int_size_sigma * 2;
 
 	//Preprocessing
-	buildBMHShiftTable(D, D_, x, m);
-	buildBRShiftTable(BR_, x, m, int_size);
+	build_BMH_shift_table(D, x, m, mm1);
+	build_BMH_shift_table(Dm1, x, mm1);
+	build_BR_shift_table(BRm1, x, m, int_size);
 
 	// Filling V0 with pointers to chunks of V1
-	copy_value(V0, V1 + (mm1 << LOG_SIGMA), int_size_sigma, int_size);
+	set_array(V0, V1 + mm1_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm1; i++)
-		V0[x[i]] = V1 + (D_[x[i]] << LOG_SIGMA);
-
-	/*copy_value(V0m, (mm1 << LOG_SIGMA), int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-	V0m[x[i]] = (D_[x[i]] << LOG_SIGMA);*/
+		add_multsigma(V0 + x[i], V1, Dm1[x[i]]);
 
 	// Filling V1 with pointers to chunks of V2
-	fillFirstLetter(V1, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
+	fill_first_letter(V1 + mm1_sigma, V2 + m_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
 	for (int i = 0; i < mm1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V1[(i << LOG_SIGMA) + j] = V2 + ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);
-
-	/*fillFirstLetter(V1m, m_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-	for (int j = 0; j < SIGMA; j++)
-	V1m[(i << LOG_SIGMA) + j] = ((BR_[x[mm2 - i]][j]) << LOG_SIGMA);*/
+		cyclesigma_add_multsigma(V1 + mult_sigma(i), V2, *(BRm1 + x[mm2 - i]));
 
 	// Filling V2 with pointers to chunks of V3
-	fillBeginning(V2, V3, mm1, int_size_sigma, int_size);
-	copy_value(V2 + mm1_sigma, V3 + SIGMA * m2m1, int_size_sigma, int_size);
+	fill_beginning(V2, V3, mm1, int_size_sigma, int_size);
+	set_array(V2 + mm1_sigma, V3 + m2m1_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm1; i++)
-		V2[(mm1 << LOG_SIGMA) + x[i]] = V3 + ((D_[x[i]] + m) << LOG_SIGMA);
+		add_multsigma(V2 + mm1_sigma + x[i], V3, Dm1[x[i]] + m);
 	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2 + mm1_sigma));
-	V2[(mm1 << LOG_SIGMA) + x[mm1]] = V3 + (mm1 << LOG_SIGMA);
-
-	/*fillBeginning(V2m, 0, mm1, int_size_sigma, int_size);
-	copy_value(V2m + mm1_sigma, SIGMA * m2m1, int_size_sigma, int_size);
-	for (int i = 0; i < mm1; i++)
-	V2m[(mm1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V2m + mm1_sigma));
-	V2m[(mm1 << LOG_SIGMA) + x[mm1]] = (mm1 << LOG_SIGMA);*/
+	add_multsigma(V2 + mm1_sigma + x[mm1], V3, mm1);
 
 	// Filling V3 with pointers to chunks of V4
-	fillBeginning(V3, V4, m, int_size_sigma, int_size);
-	fillFirstLetter(V3 + m_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V3[((m + i) << LOG_SIGMA) + j] = V4 + ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);
-
-	/*fillBeginning(V3m, 0, m, int_size_sigma, int_size);
-	fillFirstLetter(V3m + m_sigma, m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = 0; i < mm1; i++)
-	for (int j = 0; j < SIGMA; j++)
-	V3m[((m + i) << LOG_SIGMA) + j] = ((m + BR_[x[mm2 - i]][j]) << LOG_SIGMA);*/
+	fill_beginning(V3, V4, m, int_size_sigma, int_size);
+	fill_first_letter(V3 + m2m1_sigma, V4 + m2_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
+	for (int i = m; i < m2m1; i++)
+		cyclesigma_add_multsigma(V3 + mult_sigma(i), V4 + m_sigma, BRm1[x[m2m2 - i]]);
 
 	// Filling V4 with pointers to chunks of V5
-	fillBeginning(V4, V5, m2m1, int_size_sigma, int_size);
-	copy_value(V4 + (m2m1 << LOG_SIGMA), V5 + (m3m1 << LOG_SIGMA), int_size_sigma * mp1, int_size);
+	fill_beginning(V4, V5, m2m1, int_size_sigma, int_size);
+	set_array(V4 + m2m1_sigma, V5 + m3m1_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm1; i++)
-		V4[(m2m1 << LOG_SIGMA) + x[i]] = V5 + ((D_[x[i]] + m2) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + (m2m1 << LOG_SIGMA)));
-	V4[(m2m1 << LOG_SIGMA) + x[mm1]] = V5 + (m2m1 << LOG_SIGMA);
-
-	/*fillBeginning(V4m, 0, m2m1, int_size_sigma, int_size);
-	copy_value(V4m + (m2m1 << LOG_SIGMA), (m3m1 << LOG_SIGMA), int_size_sigma * mm2, int_size); //mm2
-	for (int i = 0; i < mm1; i++)
-	V4m[(m2m1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m2) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4m + (m2m1 << LOG_SIGMA)));
-	V4m[(m2m1 << LOG_SIGMA) + x[mm1]] = (m2m1 << LOG_SIGMA);*/
+		add_multsigma(V4 + m2m1_sigma + x[i], V5 + m2_sigma, Dm1[x[i]]);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V4 + m2m1_sigma));
+	add_multsigma(V4 + m2m1_sigma + x[mm1], V5, m2m1);
 
 	// Filling V5 with pointers to chunks of V6
-	fillBeginning(V5, V6, m2, int_size_sigma, int_size);
-	fillFirstLetter(V5 + m2_sigma, V6 + (m3 << LOG_SIGMA), int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = m; i < m2m1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V5[((m + i) << LOG_SIGMA) + j] = V6 + ((BR_[x[m2m2 - i]][j] + m2) << LOG_SIGMA);
-
-	/*fillBeginning(V5m, 0, m2, int_size_sigma, int_size);
-	fillFirstLetter(V5m + m2_sigma, m3<<LOG_SIGMA, int_size_sigma, int_size, x[0], int_size_sigma_m); //<<LOG_SIGMA
-	for (int i = m; i < m2m1; i++)
-	for (int j = 0; j < SIGMA; j++)
-	V5m[((m + i) << LOG_SIGMA) + j] = ((BR_[x[m2m2 - i]][j] + m2) << LOG_SIGMA);*/
+	fill_beginning(V5, V6, m2, int_size_sigma, int_size);
+	fill_first_letter(V5 + m3m1_sigma, V6 + m3_sigma, int_size_sigma, int_size, x[0], int_size_sigma);
+	for (int i = m2; i < m3m1; i++)
+		cyclesigma_add_multsigma(V5 + mult_sigma(i), V6 + m2_sigma, BRm1[x[m3m2 - i]]);
 
 	// Filling V6 with pointers to chunks of V7
-	fillBeginning(V6, V7, m3m1, int_size_sigma, int_size);
-	copy_value(V6 + (m3m1 << LOG_SIGMA), V7 + (m4m1 << LOG_SIGMA), int_size_sigma * mp1, int_size); // why mp1
+	fill_beginning(V6, V7, m3m1, int_size_sigma, int_size);
+	set_array(V6 + m3m1_sigma, V7 + m4m1_sigma, int_size_sigma, int_size);
 	for (int i = 0; i < mm1; i++)
-		V6[(m3m1 << LOG_SIGMA) + x[i]] = V7 + ((D_[x[i]] + m3) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V6 + (m3m1 << LOG_SIGMA)));
-	V6[(m3m1 << LOG_SIGMA) + x[mm1]] = V7 + (m3m1 << LOG_SIGMA);
-
-	/*fillBeginning(V6m, 0, m3m1, int_size_sigma, int_size);
-	copy_value(V6m + (m3m1 << LOG_SIGMA), (m4m1 << LOG_SIGMA), int_size_sigma * mm2, int_size); // why mp1
-	for (int i = 0; i < mm1; i++)
-	V6m[(m3m1 << LOG_SIGMA) + x[i]] = ((D_[x[i]] + m3) << LOG_SIGMA);
-	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V6m + (m3m1 << LOG_SIGMA)));
-	V6m[(m3m1 << LOG_SIGMA) + x[mm1]] = (m3m1 << LOG_SIGMA);*/
+		add_multsigma(V6 + m3m1_sigma + x[i], V7 + m3_sigma, Dm1[x[i]]);
+	mem_fill(int_size_sigma, int_size_sigma_2, (unsigned char*)(V6 + m3m1_sigma));
+	add_multsigma(V6 + m3m1_sigma + x[mm1], V7, m3m1);
 
 	// Filling V7 with shift values
-	fillBeginningFinal(V7, m3, int_size_sigma, int_size);
-	fillFirstLetterFinal(V7 + m3_sigma, m4, int_size_sigma, int_size, x[0], int_size_sigma_m);
-	for (int i = m; i < m2m1; i++)
-		for (int j = 0; j < SIGMA; j++)
-			V7[((m2 + i) << LOG_SIGMA) + j] = BR_[x[m2m2 - i]][j] + m3;
+	fill_beginning_final(V7, m3, int_size_sigma, int_size);
+	fill_first_letter_final(V7 + m4m1_sigma, m4, int_size_sigma, int_size, x[0], int_size_sigma); //!!! to the end of the block
+	for (int i = m3; i < m4m1; i++)
+		cyclesigma_add(V7 + mult_sigma(i), BRm1[x[m4m2 - i]], m3);
 
 	//Search
-	int *******p1, ******p2, *****p3, ****p4, ***p5, **p6, *p7;
-	pos = mm2;
-	for (int i = 0; i < m; i++) y[n + i] = x[i]; //append the text with a stop pattern
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
-		p1 = V0[y[pos]];
-		p2 = p1[y[pos + 1]];
-		p3 = p2[y[pos + m]];
-		p4 = p3[y[pos + mp1]];
-		p5 = p4[y[pos + m2]];
-		p6 = p5[y[pos + m2p1]];
-		p7 = p6[y[pos + m3]];
-		r = p7[y[pos + m3p1]];
-		if (!r) {
-			for (k = 0; k < mm2 && y[pos - mm2 + k] == x[k]; k++);
-			if (k == mm2) {
-				if (pos >= n)
+		y_pos = y + pos;
+		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + m2)][*(y_pos + m2p1)][*(y_pos + m3)][*(y_pos + m3p1)])) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
 					break;
-				count++;
+				++count;
 			}
-			pos += D[y[pos + 1]];
+			pos += D[*(y_pos + 1)];
 		}
 		else
-			pos += r;
+			pos += step;
 	}
 
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_maw42p += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw42p += algo_time;
 
 	return count;
 }
@@ -1423,7 +1402,7 @@ void build_TD1() {
 int shb[1000];
 //=============== QLQS
 static int qlqsSearch(const unsigned char *P, int m, const unsigned char *T, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 	int k, i, shb[SIGMA], z = 2 * m + 1, zm1 = z - 1, nm = n - m;
 	build_TD1();
 	for (i = 0; i < SIGMA; i++)
@@ -1440,10 +1419,10 @@ static int qlqsSearch(const unsigned char *P, int m, const unsigned char *T, int
 			? z
 			: TD1[T[i + m]]);
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
 
-	sum_qlqs += u;
+	sum_qlqs += algo_time;
 	return count_qlqs;
 }
 
@@ -1454,7 +1433,7 @@ static int qlqsSearch(const unsigned char *P, int m, const unsigned char *T, int
 //=============== HASH3
 int searchH3(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < 3) return -1;
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 	int count, j, i, sh, sh1, mMinus1, mMinus2, shift[WSIZE];
 	unsigned char h;
 	count = 0;
@@ -1504,15 +1483,15 @@ int searchH3(unsigned char *x, int m, unsigned char *y, int n) {
 			i += sh1;
 		}
 		else {
-			QueryPerformanceCounter(&_end);
-			u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-			sum_hash3 += u;
+			QueryPerformanceCounter(&end_time);
+			algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+			sum_hash3 += algo_time;
 			return count;
 		}
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_hash3 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_hash3 += algo_time;
 	return count;
 }
 
@@ -1521,7 +1500,7 @@ int searchH3(unsigned char *x, int m, unsigned char *y, int n) {
 
 //=============== EBOW
 int ebomSearch(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	int S[XSIZE], FT[SIGMA][SIGMA];
 	int *trans[XSIZE];
@@ -1550,8 +1529,8 @@ int ebomSearch(unsigned char *x, int m, unsigned char *y, int n) {
 	for (i = 0; i < SIGMA; i++) {
 		q = trans[m][i];
 		for (j = 0; j < SIGMA; j++)
-			if (q >= 0) FT[i][j] = trans[q][j];
-			else FT[i][j] = UNDEFINED;
+		if (q >= 0) FT[i][j] = trans[q][j];
+		else FT[i][j] = UNDEFINED;
 	}
 
 	/* Searching */
@@ -1570,9 +1549,9 @@ int ebomSearch(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		j = i + m;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_ebom += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_ebom += algo_time;
 	for (i = 0; i <= m + 1; i++) free(trans[i]);
 	return count;
 }
@@ -1580,19 +1559,19 @@ int ebomSearch(unsigned char *x, int m, unsigned char *y, int n) {
 void TVSBSpreBrBc(unsigned char *x, int m, int brBc[SIGMA][SIGMA]) {
 	int a, b, i;
 	for (a = 0; a < SIGMA; ++a)
-		for (b = 0; b < SIGMA; ++b)
-			brBc[a][b] = m + 2;
+	for (b = 0; b < SIGMA; ++b)
+		brBc[a][b] = m + 2;
 	for (a = 0; a < SIGMA; ++a)
-		brBc[a][P1[0]] = m + 1;
+		brBc[a][P[0]] = m + 1;
 	for (i = 0; i < m - 1; ++i)
-		brBc[P1[i]][P1[i + 1]] = m - i;
+		brBc[P[i]][P[i + 1]] = m - i;
 	for (a = 0; a < SIGMA; ++a)
-		brBc[P1[m - 1]][a] = 1;
+		brBc[P[m - 1]][a] = 1;
 }
 
 //=============== TVSBS
 int TVSBSsearch(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 	int count, i, j = 0;
 	int BrBc[SIGMA][SIGMA];
 	unsigned char firstCh, lastCh;
@@ -1608,15 +1587,15 @@ int TVSBSsearch(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		j += BrBc[y[j + m]][y[j + m + 1]];
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_tvsbs += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_tvsbs += algo_time;
 	return ktvsbs;
 }
 
 //=============== FSBNDM
 int FSBNDMsearch(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	unsigned int B[SIGMA], D, set;
 	int i, j, pos, mMinus1, count;
@@ -1645,14 +1624,14 @@ int FSBNDMsearch(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		else j += m;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_fsbndm += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_fsbndm += algo_time;
 	return count;
 }
 
 void preSA(unsigned char *x, int m, unsigned int S[]) {
-	unsigned int j, lim;
+	unsigned int j;
 	int i;
 	for (i = 0; i < SIGMA; ++i) S[i] = 0;
 	for (i = 0, j = 1; i < m; ++i, j <<= 1) {
@@ -1662,9 +1641,9 @@ void preSA(unsigned char *x, int m, unsigned int S[]) {
 
 //=============== Shift-And
 int searchSA(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
-	unsigned int lim, D;
+	unsigned int D;
 	unsigned int S[SIGMA], F;
 	int j, count;
 	//   if (m > WORD) return search_large(x,m,y,n);
@@ -1679,9 +1658,9 @@ int searchSA(unsigned char *x, int m, unsigned char *y, int n) {
 		D = ((D << 1) | 1) & S[y[j]];
 		if (D & F) OUTPUT(j - m + 1);
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_sa += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_sa += algo_time;
 	return count;
 }
 
@@ -1689,7 +1668,7 @@ int searchSA(unsigned char *x, int m, unsigned char *y, int n) {
 
 //============== SBNDMq2
 int searchSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 	unsigned int B[SIGMA], D, q;
 	int i, j, pos, mMinusq, mq, count, shift;
 	q = 2;
@@ -1728,16 +1707,16 @@ int searchSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		else j += mMinusq;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_sbndmq2 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_sbndmq2 += algo_time;
 	return count;
 }
 
 #define GRAM4(j) (B[y[j]]<<3)&(B[y[j-1]]<<2)&(B[y[j-2]]<<1)&B[y[j-3]]
 
 int search_large_SBNDM4(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 	unsigned int B[SIGMA], D, q, shift;
 	int i, j, pos, mMinusq, mq, count, p_len;
 	q = 4;
@@ -1779,9 +1758,9 @@ int search_large_SBNDM4(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		else j += mMinusq;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_sbndmq4 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_sbndmq4 += algo_time;
 	return kfsbndm4;
 }
 
@@ -1792,7 +1771,7 @@ int searchSBNDMq4(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m<q) return -1;
 	if (m>32) return search_large_SBNDM4(x, m, y, n);
 
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	unsigned int B[SIGMA], D;
 	int i, j, pos, mMinusq, mq, count, shift;
@@ -1829,18 +1808,18 @@ int searchSBNDMq4(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		else j += mMinusq;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_sbndmq4 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_sbndmq4 += algo_time;
 	return kfsbndm4;
 }
 
 //============== GSBNDMq2
 int GSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < 4) return -1;
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 	unsigned int B[SIGMA], D, q, mpm2 = 2 * m - 2, mm1 = m - 1, mm2 = m - 2;
-	int i, j, pos, mMinusq, mq, shift;
+	int i, j, mMinusq, mq;
 	q = 2;
 	int kgsb2 = 0;
 	//   if (m>32) return search_large(x,m,y,n);
@@ -1875,9 +1854,9 @@ int GSBNDMq2(unsigned char *x, int m, unsigned char *y, int n) {
 		else
 			i += mm2;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_gsbndmq2 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_gsbndmq2 += algo_time;
 	return kgsb2;
 }
 
@@ -1885,7 +1864,7 @@ const int Qq = 3, F = 1, W = 32;
 
 //============== FSBNDM31
 int FSBNDMsearch31(unsigned char *x, int m, unsigned char *y, int n) {
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 	unsigned int B[SIGMA], D;
 	int i, j, pos, mm1 = m - 1, count, nq = n - Qq + 1, mqf = m - Qq + F + 1;
 
@@ -1914,9 +1893,9 @@ int FSBNDMsearch31(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		i += mqf;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_fsb31 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_fsb31 += algo_time;
 	return kfsbqf;
 }
 
@@ -1925,7 +1904,7 @@ const int Q41 = 4, F41 = 1;
 //============== FSBNDM41
 int FSBNDMsearch41(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < 3) return -1;
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	unsigned int B[SIGMA], D;
 	int i, j, pos, mm1 = m - 1, count, nq = n - Q41 + 1, mqf = m - Q41 + F41 + 1;
@@ -1955,9 +1934,9 @@ int FSBNDMsearch41(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		i += mqf;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_fsb41 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_fsb41 += algo_time;
 	return kfsbq41;
 }
 
@@ -1967,10 +1946,10 @@ const int Q51 = 4, F51 = 1;
 int FSBNDMsearch51(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < 4) return -1;
 	//   if (m>31) return search_large(x,m,y,n); 
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
 	unsigned int B[SIGMA], D;
-	int i, j, pos, mm1 = m - 1, count, nq = n - Q51 + 1, mqf = m - Q51 + F51 + 1;
+	int i, j, pos, mm1 = m - 1, nq = n - Q51 + 1, mqf = m - Q51 + F51 + 1;
 
 	/* Preprocessing */
 	int kfsbq51 = 0;
@@ -1995,9 +1974,9 @@ int FSBNDMsearch51(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		i += mqf;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_fsb51 += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_fsb51 += algo_time;
 	return kfsbq51;
 }
 
@@ -2008,11 +1987,10 @@ int FSBNDMsearch51(unsigned char *x, int m, unsigned char *y, int n) {
 //============== BSDM
 int searchBSDM(unsigned char *x, int m, unsigned char *y, int n) {
 	if (m < Q) return -1;
-	QueryPerformanceCounter(&start);
+	QueryPerformanceCounter(&start_time);
 
-	unsigned int B[DSIGMA];
 	int i, j, k, count = 0;
-	unsigned int s, d;
+	unsigned int d;
 
 	/* Preprocessing */
 	unsigned int occ[DSIGMA] = { 0 };
@@ -2065,13 +2043,14 @@ int searchBSDM(unsigned char *x, int m, unsigned char *y, int n) {
 		}
 		j += len;
 	}
-	QueryPerformanceCounter(&_end);
-	u = (_end.QuadPart - start.QuadPart) * 1000000 / freq.QuadPart;
-	sum_bsdm += u;
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_bsdm += algo_time;
 	return count;
 }
 
 void generateRandom() {
+	static int glob = 0;
 	srand((unsigned)time(NULL));
 	for (int i = 0; i < N; i++) {
 		T[i] = (rand() + glob % 320) % SIGMA;
@@ -2087,14 +2066,14 @@ void DNA() {
 	N = 4638680;
 	FILE *f;
 	f = fopen("ecoli.txt", "rt");
-	fread(T1, 1, N, f);
+	fread(T, 1, N, f);
 	for (int i = 0; i < N; i++)
-		switch (T1[i]) {
+		switch (T[i]) {
 		case 'a': T[i] = 0; break;
 		case 'c': T[i] = 1; break;
 		case 't': T[i] = 2; break;
 		case 'g': T[i] = 3;
-		}
+	}
 }
 
 void English() {
@@ -2109,68 +2088,78 @@ void English() {
 
 void main() {
 	QueryPerformanceFrequency(&freq);
-	QueryPerformanceFrequency(&_freq);
 
-	f = fopen("output.csv", "wt");
+	std::string filename = "output";
+	if (SIGMA >= 100)
+		filename += char((SIGMA / 10) % 10 + '0');
+	if (SIGMA >= 10)
+		filename += char((SIGMA % 100) / 10 + '0');
+	filename += char(SIGMA % 10 + '0');
+	filename += ".csv";
+	FILE *f = fopen(filename.c_str(), "wt");
+
 	generateRandom();
 	//DNA();
 
 	fprintf(f, "b=%d N=%d ITER=%d\n", SIGMA, N, ITER);
 
-	fprintf(f, "m,MAW22,MAW22P,MAW23P,MAW24P,MAW32P,MAW33P,MAW42P,QLQS,HASH3,EBOW,TVSBS,FSBNDM,SA,SBNDMq2,SBNDMq4,GSBNDMq2,FSBNDM31,FSBNDM41,FSBNDM51,BSDM");
-	for (m = 2; m < 71; m < 10 ? m++ : m += 10) {
-		//for (m = 16; m < 33; m+=2) {
+	fprintf(f, "m,MAW22,MAW23,MAW24,MAW32,MAW33,MAW42,MAW22P,MAW23P,MAW24P,MAW32P,MAW33P,MAW42P,QLQS,HASH3,EBOW,TVSBS,FSBNDM,SA,SBNDMq2,SBNDMq4,GSBNDMq2,FSBNDM31,FSBNDM41,FSBNDM51,BSDM");
+	for (m = 2; m < 81; m < 10 ? m++ : m += 10) {
+		sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = 0;
+		sum_maw22p = sum_maw23p = sum_maw24p = sum_maw32p = sum_maw33p = sum_maw42p = 0;
+		sum_qlqs = sum_hash3 = sum_ebom = sum_tvsbs = sum_fsbndm = sum_sa = sum_sbndmq2 = sum_sbndmq4 = sum_gsbndmq2 = sum_fsb31 = sum_fsb41 = sum_fsb51 = sum_bsdm = 0;
 
-		//for (int ig = 0; ig < 2; ig++) {
-			sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = 0;
-			sum_maw22p = sum_maw23p = sum_maw24p = sum_maw32p = sum_maw33p = sum_maw42p = 0;
-			sum_qlqs = sum_hash3 = sum_ebom = sum_tvsbs = sum_fsbndm = sum_sa = sum_sbndmq2 = sum_sbndmq4 = sum_gsbndmq2 = sum_fsb31 = sum_fsb41 = sum_fsb51 = sum_bsdm = 0;
-			
-			nm2 = N - 2 * m;
-			int nm = N - m;
-			memcpy(T1, T, N);
-			for (int ii = 0; ii < ITER; ii++) {
-				srand((unsigned)time(NULL));
-				int patpos = rand() % (N - m - 2);
-				for (int i = 0; i < m; i++)
-					P[i] = T[patpos + i];
-				for (int i = 0; i < m; i++)
-					T[N - m + i] = P[i];
+		int nm = N - m;
+		for (int ii = 0; ii < ITER; ii++) {
+			srand((unsigned)time(NULL));
+			int patpos = rand() % (N - m - 2);
+			for (int i = 0; i < m; i++)
+				P[i] = T[patpos + i];
+			for (int i = 0; i < m; i++)
+				T[N - m + i] = P[i];
 
-				memcpy(P1, P, m);
+			maw22 = MAW22(P, m, T, nm);
+			if (SIGMA < 16) maw23 = MAW23(P, m, T, nm);
+			if (SIGMA < 16) maw24 = MAW24(P, m, T, nm);
+			if (SIGMA < 16) maw32 = MAW32(P, m, T, nm);
+			if (SIGMA < 16) maw33 = MAW33(P, m, T, nm);
+			if (SIGMA < 16) maw42 = MAW42(P, m, T, nm);
 
-				maw22 = MAW22(P, m, T, nm);
-				maw22p = MAW22P(P, m, T, nm);
-				maw23p = MAW23P(P, m, T, nm);
-				maw24p = MAW24P(P, m, T, nm);
-				maw32p = MAW32P(P, m, T, nm);
-				maw33p = MAW33P(P, m, T, nm);
-				maw42p = MAW42P(P, m, T, nm);
+			maw22p = MAW22P(P, m, T, nm);
+			maw23p = MAW23P(P, m, T, nm);
+			maw24p = MAW24P(P, m, T, nm);
+			maw32p = MAW32P(P, m, T, nm);
+			maw33p = MAW33P(P, m, T, nm);
+			maw42p = MAW42P(P, m, T, nm);
 
-				qlqs = qlqsSearch(P, m, T, N);
-				hash3 = searchH3(P, m, T, N);
-				ebom = ebomSearch(P, m, T, N);
-				tvsbs = TVSBSsearch(P, m, T, N);
-				fsbndm = FSBNDMsearch(P, m, T, N);
-				sa = searchSA(P, m, T, N);
-				sbndmq2 = searchSBNDMq2(P, m, T, N);
-				sbndmq4 = searchSBNDMq4(P, m, T, N);
-				gsbndmq2 = GSBNDMq2(P, m, T, N);
-				fsb31 = FSBNDMsearch31(P, m, T, N);
-				fsb41 = FSBNDMsearch41(P, m, T, N);
-				fsb51 = FSBNDMsearch51(P, m, T, N);
-				bsdm = searchBSDM(P, m, T, N);
-			}
-			printf("b=%d m=%d\n", SIGMA, m);
-			printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", maw22, maw22p, maw23p, maw24p, maw32p, maw33p, maw42p, qlqs, hash3, ebom, tvsbs, fsbndm, sa, sbndmq2, sbndmq4, gsbndmq2, fsb31, fsb41, fsb51, bsdm);
-			fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
-				m, sum_maw22, sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p, sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, sum_sbndmq4,
-				sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
-			printf("%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld\n\n",
-				m, sum_maw22, sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p, sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, sum_sbndmq4,
-				sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
-
-		//}
+			qlqs = qlqsSearch(P, m, T, N);
+			hash3 = searchH3(P, m, T, N);
+			ebom = ebomSearch(P, m, T, N);
+			tvsbs = TVSBSsearch(P, m, T, N);
+			fsbndm = FSBNDMsearch(P, m, T, N);
+			sa = searchSA(P, m, T, N);
+			sbndmq2 = searchSBNDMq2(P, m, T, N);
+			sbndmq4 = searchSBNDMq4(P, m, T, N);
+			gsbndmq2 = GSBNDMq2(P, m, T, N);
+			fsb31 = FSBNDMsearch31(P, m, T, N);
+			fsb41 = FSBNDMsearch41(P, m, T, N);
+			fsb51 = FSBNDMsearch51(P, m, T, N);
+			bsdm = searchBSDM(P, m, T, N);
+		}
+		printf("b=%d m=%d\n", SIGMA, m);
+		printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+			maw22, maw23, maw24, maw32, maw33, maw42, maw22p, maw23p, maw24p, maw32p, maw33p, maw42p,
+			qlqs, hash3, ebom, tvsbs, fsbndm, sa, sbndmq2, sbndmq4, gsbndmq2, fsb31, fsb41, fsb51, bsdm);
+		fprintf(f, "\n%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
+			m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw42,
+			sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p, 
+			sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, 
+			sum_sbndmq4, sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
+		printf("%2.d,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld\n\n",
+			m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw42,
+			sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p, 
+			sum_qlqs, sum_hash3, sum_ebom, sum_tvsbs, sum_fsbndm, sum_sa, sum_sbndmq2, 
+			sum_sbndmq4, sum_gsbndmq2, sum_fsb31, sum_fsb41, sum_fsb51, sum_bsdm);
 	}
 	fclose(f);
 	system("pause");
