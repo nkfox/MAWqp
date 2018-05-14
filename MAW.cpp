@@ -44,14 +44,6 @@ using namespace std;
 #define LOG_SIGMA 3 //logarithm of alphabet size
 #endif
 
-const int TOTAL = 1000000 + 5 * P_MAX;
-unsigned char T[TOTAL], P[P_MAX];
-int N = TOTAL - 5 * P_MAX, ITER = 200, m;
-
-long long sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33;
-long long sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33;
-int maw22, maw23, maw24, maw32, maw33;
-
 //-----------------Additional functions---------------------
 
 //amount_to_copy bytes pointed by pointer are repeated until pointer[0..range] is filled
@@ -76,11 +68,13 @@ void build_BMH_shift_table(int* D, const unsigned char *x, const int& m, int end
 		D[x[i]] = mm1 - i;
 }
 
+//-----------------------MAW--------------------------------
+
 // The MAW22 algorithm
 int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M22 = (unsigned char *)malloc(SIGMA4); // MAW22 search table
@@ -105,13 +99,13 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 		set_array(M22 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, mm2 - k, SIGMA2);
 
 	//Search
-	pos = mm2, posend_time = n + mm2;
+	pos = mm2, last_pos = n + mm2;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M22 + *y_pos * SIGMA3 + *(y_pos + 1) * SIGMA2 + *(y_pos + m) * SIGMA + *(y_pos + mp1)))) {
 			if (!memcmp(x, y + (pos - mm2), mm2)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -131,7 +125,7 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 	
 	int mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M23 = (unsigned char*)malloc(SIGMA6); // MAW23 search table
@@ -162,13 +156,13 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 		set_array(M23 + x[k] * SIGMA5 + x[k + 1] * SIGMA4 + x[k + 2] * SIGMA3, mm3 - k, SIGMA3);
 
 	//Search
-	pos = mm3, posend_time = n + mm3;
+	pos = mm3, last_pos = n + mm3;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M23 + *y_pos * SIGMA5 + *(y_pos + 1) * SIGMA4 + *(y_pos + 2) * SIGMA3 + *(y_pos + m) * SIGMA2 + *(y_pos + mp1) * SIGMA + *(y_pos + mp2)))) {
 			if (!memcmp(x, y + (pos - mm3), mm3)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -188,7 +182,7 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 	
 	int mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3, mm4 = m - 4,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M24 = (unsigned char *)malloc(SIGMA8); // MAW24 search table
@@ -225,14 +219,14 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 		set_array(M24 + x[k] * SIGMA7 + x[k + 1] * SIGMA6 + x[k + 2] * SIGMA5 + x[k + 3] * SIGMA4, mm4 - k, SIGMA4);
 
 	//Search
-	pos = mm4, posend_time = n + mm4;
+	pos = mm4, last_pos = n + mm4;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M24 + *y_pos * SIGMA7 + *(y_pos + 1) * SIGMA6 + *(y_pos + 2) * SIGMA5 + *(y_pos + 3) * SIGMA4 +
 			*(y_pos + m) * SIGMA3 + *(y_pos + mp1) * SIGMA2 + *(y_pos + mp2) * SIGMA + *(y_pos + mp3)))) {
 			if (!memcmp(x, y + (pos - mm4), mm4)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -252,7 +246,7 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
 		m3 = m * 3, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M32 = (unsigned char *)malloc(SIGMA6); // MAW32 search table
@@ -284,13 +278,13 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 		set_array(M32 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, mm2 - k, SIGMA4);
 
 	//Search
-	pos = mm2, posend_time = n + mm2;
+	pos = mm2, last_pos = n + mm2;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M32 + *y_pos * SIGMA5 + *(y_pos + 1) * SIGMA4 + *(y_pos + m) * SIGMA3 + *(y_pos + mp1) * SIGMA2 + *(y_pos + m2) * SIGMA + *(y_pos + m2p1)))) {
 			if (!memcmp(x, y + (pos - mm2), mm2)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -311,7 +305,7 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	int mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2p2 = 2 * m + 2, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
 		m3 = m * 3, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2, m3m3 = 3 * m - 3,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M33 = (unsigned char *)malloc(SIGMA9); // MAW33 search table
@@ -352,7 +346,7 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 		set_array(M33 + x[k] * SIGMA8 + x[k + 1] * SIGMA7 + x[k + 2] * SIGMA6, mm3 - k, SIGMA6);
 
 	//Search
-	pos = mm3, posend_time = n + mm3;
+	pos = mm3, last_pos = n + mm3;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
@@ -360,7 +354,7 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 			+ *(y_pos + m) * SIGMA5 + *(y_pos + mp1) * SIGMA4 + *(y_pos + mp2) * SIGMA3
 			+ *(y_pos + m2) * SIGMA2 + *(y_pos + m2p1) * SIGMA + *(y_pos + m2p2)))) {
 			if (!memcmp(x, y + (pos - mm3), mm3)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -371,5 +365,72 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	}
 
 	free(M33);
+	return count;
+}
+
+// The MAW42 algorithm
+int MAW42(unsigned char *x, int m, unsigned char *y, int n) {
+
+	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
+		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		m3 = 3 * m, m3p1 = 3 * m + 1, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2,
+		m4 = 4 * m, m4m1 = 4 * m - 1, m4m2 = 4 * m - 2,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M42 = (unsigned char *)malloc(SIGMA8); // MAW42 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M42 search table
+	memset(M42, m4, SIGMA);
+
+	*(M42 + x[0]) = m4m1;
+	mem_fill(SIGMA, SIGMA2, M42);
+
+	for (int k = 0; k < mm1; k++)
+		*(M42 + x[k] * SIGMA + x[k + 1]) = m4m2 - k;
+	mem_fill(SIGMA2, SIGMA3, M42);
+
+	set_array(M42 + x[0] * SIGMA2 + x[mm1] * SIGMA, m3m1, SIGMA);
+	mem_fill(SIGMA3, SIGMA4, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, m3m2 - k, SIGMA2);
+	mem_fill(SIGMA4, SIGMA5, M42);
+
+	set_array(M42 + x[0] * SIGMA4 + x[mm1] * SIGMA3, m2m1, SIGMA3);
+	mem_fill(SIGMA5, SIGMA6, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, m2m2 - k, SIGMA4);
+	mem_fill(SIGMA6, SIGMA7, M42);
+
+	set_array(M42 + x[0] * SIGMA6 + x[mm1] * SIGMA5, mm1, SIGMA5);
+	mem_fill(SIGMA7, SIGMA8, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA7 + x[k + 1] * SIGMA6, mm2 - k, SIGMA6);
+
+	//Search
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M42 + *y_pos * SIGMA7 + *(y_pos + 1) * SIGMA6 + *(y_pos + m) * SIGMA5 + *(y_pos + mp1) * SIGMA4
+			+ *(y_pos + m2) * SIGMA3 + *(y_pos + m2p1) * SIGMA2 + *(y_pos + m3) * SIGMA + *(y_pos + m3p1)))) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 1)];
+		}
+		else
+			pos += step;
+	}
+
+	free(M42);
 	return count;
 }

@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #pragma comment(linker, "/STACK:4000000")
 #include <malloc.h>
 #include <time.h>
@@ -75,10 +74,10 @@ int N = TOTAL - 5 * P_MAX, ITER = 200, m;
 LARGE_INTEGER start_time, end_time, freq;
 long long algo_time;
 
-long long sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33;
-long long sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33;
-int maw22, maw23, maw24, maw32, maw33;
-int maw22c, maw23c, maw24c, maw32c, maw33c;
+long long sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw42;
+long long sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep42;
+int maw22, maw23, maw24, maw32, maw33, maw42;
+int maw22c, maw23c, maw24c, maw32c, maw33c, maw42c;
 
 long long sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p;
 long long sum_prep22p, sum_prep23p, sum_prep24p, sum_prep32p, sum_prep33p, sum_prep42p;
@@ -328,7 +327,7 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 
 	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M22 = (unsigned char *)malloc(SIGMA4); // MAW22 search table
@@ -359,13 +358,13 @@ int MAW22(unsigned char *x, int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm2, posend_time = n + mm2;
+	pos = mm2, last_pos = n + mm2;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M22 + *y_pos * SIGMA3 + *(y_pos + 1) * SIGMA2 + *(y_pos + m) * SIGMA + *(y_pos + mp1)))) {
 			if (!memcmp(x, y + (pos - mm2), mm2)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -390,7 +389,7 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 
 	int mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M23 = (unsigned char*)malloc(SIGMA6); // MAW23 search table
@@ -427,13 +426,13 @@ int MAW23(unsigned char *x, int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm3, posend_time = n + mm3;
+	pos = mm3, last_pos = n + mm3;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M23 + *y_pos * SIGMA5 + *(y_pos + 1) * SIGMA4 + *(y_pos + 2) * SIGMA3 + *(y_pos + m) * SIGMA2 + *(y_pos + mp1) * SIGMA + *(y_pos + mp2)))) {
 			if (!memcmp(x, y + (pos - mm3), mm3)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -458,7 +457,7 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 
 	int mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3, mm4 = m - 4,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M24 = (unsigned char *)malloc(SIGMA8); // MAW24 search table
@@ -501,14 +500,14 @@ int MAW24(unsigned char *x, int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm4, posend_time = n + mm4;
+	pos = mm4, last_pos = n + mm4;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M24 + *y_pos * SIGMA7 + *(y_pos + 1) * SIGMA6 + *(y_pos + 2) * SIGMA5 + *(y_pos + 3) * SIGMA4 +
 			*(y_pos + m) * SIGMA3 + *(y_pos + mp1) * SIGMA2 + *(y_pos + mp2) * SIGMA + *(y_pos + mp3)))) {
 			if (!memcmp(x, y + (pos - mm4), mm4)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -533,7 +532,7 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
 		m3 = m * 3, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M32 = (unsigned char *)malloc(SIGMA6); // MAW32 search table
@@ -571,13 +570,13 @@ int MAW32(unsigned char *x, int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm2, posend_time = n + mm2;
+	pos = mm2, last_pos = n + mm2;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = *(M32 + *y_pos * SIGMA5 + *(y_pos + 1) * SIGMA4 + *(y_pos + m) * SIGMA3 + *(y_pos + mp1) * SIGMA2 + *(y_pos + m2) * SIGMA + *(y_pos + m2p1)))) {
 			if (!memcmp(x, y + (pos - mm2), mm2)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -603,7 +602,7 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	int mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2p2 = 2 * m + 2, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
 		m3 = m * 3, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2, m3m3 = 3 * m - 3,
-		step, pos, posend_time, count = 0;
+		step, pos, last_pos, count = 0;
 	unsigned char *y_pos;
 	int D[P_MAX];
 	unsigned char* M33 = (unsigned char *)malloc(SIGMA9); // MAW33 search table
@@ -650,7 +649,7 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm3, posend_time = n + mm3;
+	pos = mm3, last_pos = n + mm3;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
@@ -658,7 +657,7 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 			+ *(y_pos + m) * SIGMA5 + *(y_pos + mp1) * SIGMA4 + *(y_pos + mp2) * SIGMA3
 			+ *(y_pos + m2) * SIGMA2 + *(y_pos + m2p1) * SIGMA + *(y_pos + m2p2)))) {
 			if (!memcmp(x, y + (pos - mm3), mm3)) {
-				if (pos == posend_time)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -676,6 +675,84 @@ int MAW33(unsigned char *x, int m, unsigned char *y, int n) {
 	return count;
 }
 
+// The MAW42 algorithm
+int MAW42(unsigned char *x, int m, unsigned char *y, int n) {
+	QueryPerformanceCounter(&start_time);
+
+	int mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
+		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
+		m3 = 3 * m, m3p1 = 3 * m + 1, m3m1 = 3 * m - 1, m3m2 = 3 * m - 2,
+		m4 = 4 * m, m4m1 = 4 * m - 1, m4m2 = 4 * m - 2,
+		step, pos, last_pos, count = 0;
+	unsigned char *y_pos;
+	int D[P_MAX];
+	unsigned char* M42 = (unsigned char *)malloc(SIGMA8); // MAW42 search table
+
+	// Preprocessing
+	build_BMH_shift_table(D, x, m, mm1);
+
+	// Fill the M42 search table
+	memset(M42, m4, SIGMA);
+
+	*(M42 + x[0]) = m4m1;
+	mem_fill(SIGMA, SIGMA2, M42);
+
+	for (int k = 0; k < mm1; k++)
+		*(M42 + x[k] * SIGMA + x[k + 1]) = m4m2 - k;
+	mem_fill(SIGMA2, SIGMA3, M42);
+
+	set_array(M42 + x[0] * SIGMA2 + x[mm1] * SIGMA, m3m1, SIGMA);
+	mem_fill(SIGMA3, SIGMA4, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA3 + x[k + 1] * SIGMA2, m3m2 - k, SIGMA2);
+	mem_fill(SIGMA4, SIGMA5, M42);
+
+	set_array(M42 + x[0] * SIGMA4 + x[mm1] * SIGMA3, m2m1, SIGMA3);
+	mem_fill(SIGMA5, SIGMA6, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA5 + x[k + 1] * SIGMA4, m2m2 - k, SIGMA4);
+	mem_fill(SIGMA6, SIGMA7, M42);
+
+	set_array(M42 + x[0] * SIGMA6 + x[mm1] * SIGMA5, mm1, SIGMA5);
+	mem_fill(SIGMA7, SIGMA8, M42);
+
+	for (int k = 0; k < mm1; k++)
+		set_array(M42 + x[k] * SIGMA7 + x[k + 1] * SIGMA6, mm2 - k, SIGMA6);
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_prep42 += algo_time;
+
+	QueryPerformanceCounter(&start_time);
+
+	//Search
+	pos = mm2, last_pos = n + mm2;
+	memcpy(y + n, x, m); //append the text with a stop pattern
+	while (true) {
+		y_pos = y + pos;
+		if (!(step = *(M42 + *y_pos * SIGMA7 + *(y_pos + 1) * SIGMA6 + *(y_pos + m) * SIGMA5 + *(y_pos + mp1) * SIGMA4 
+			+ *(y_pos + m2) * SIGMA3 + *(y_pos + m2p1) * SIGMA2 + *(y_pos + m3) * SIGMA + *(y_pos + m3p1)))) {
+			if (!memcmp(x, y + (pos - mm2), mm2)) {
+				if (pos == last_pos)
+					break;
+				++count;
+			}
+			pos += D[*(y_pos + 1)];
+		}
+		else
+			pos += step;
+	}
+
+	QueryPerformanceCounter(&end_time);
+	algo_time = (end_time.QuadPart - start_time.QuadPart) * 1000000 / freq.QuadPart;
+	sum_maw42 += algo_time;
+
+	free(M42);
+	return count;
+}
+
 //-----------------------MAWP-------------------------------
 
 // The MAW22 algorithm with pointers
@@ -685,7 +762,7 @@ int MAW22P(unsigned char *x, const int m, unsigned char *y, int n) {
 	int ***V0[SIGMA], **V1[SIGMA * P_MAX], *V2[SIGMA * (P_MAX + 1)], V3[SIGMA * P_MAX * 2]; //V3 - shift array; V0, V1, V2 - pointers arrays
 	int D[P_MAX], Dm1[P_MAX], BRm1[SIGMA][SIGMA];
 	unsigned char *y_pos;
-	int pos, pos_end, step, count = 0, int_size = sizeof(int),
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
 		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), m2m1_sigma = mult_sigma(m2m1),
@@ -727,13 +804,13 @@ int MAW22P(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm2, pos_end = n + mm2;
+	pos = mm2, last_pos = n + mm2;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + m)][*(y_pos + mp1)])) {
 			if (!memcmp(x, y + (pos - mm2), mm2)) {
-				if (pos == pos_end)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -760,7 +837,7 @@ int MAW23P(unsigned char *x, const int m, unsigned char *y, int n) {
 		*V4[SIGMA * (2 * P_MAX - 1)], V5[SIGMA * P_MAX * 2]; //V5 - shift array; V0, V1, V2, V3, V4 - pointers arrays
 	int D[P_MAX], Dm1[P_MAX], Dm2[P_MAX], BRm1[SIGMA][SIGMA], BRm2[SIGMA][SIGMA];
 	unsigned char *y_pos;
-	int pos, pos_end, step, count = 0, int_size = sizeof(int),
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
 		m2 = 2 * m, m2m1 = m * 2 - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
 		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), mm2_sigma = mult_sigma(mm2),
@@ -845,13 +922,13 @@ int MAW23P(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm3, pos_end = n + mm3;
+	pos = mm3, last_pos = n + mm3;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + 2)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + mp2)])) {
 			if (!memcmp(x, y + (pos - mm3), mm3)) {
-				if (pos == pos_end)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -878,7 +955,7 @@ int MAW24P(unsigned char *x, const int m, unsigned char *y, int n) {
 		**V5[SIGMA * (2 * P_MAX - 2)], *V6[SIGMA * (2 * P_MAX - 1)], V7[SIGMA * P_MAX * 2]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
 	int D[P_MAX], Dm1[P_MAX], Dm2[P_MAX], Dm3[P_MAX], BRm1[SIGMA][SIGMA], BRm2[SIGMA][SIGMA], BRm3[SIGMA][SIGMA], BRi[SIGMA][SIGMA];
 	unsigned char *y_pos;
-	int pos, pos_end, step, count = 0, int_size = sizeof(int),
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mp3 = m + 3, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3, mm4 = m - 4,
 		m2 = 2 * m, m2m1 = m * 2 - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3, m2m4 = 2 * m - 4,
 		m_sigma = mult_sigma(m), mm1_sigma = mult_sigma(mm1), mm2_sigma = mult_sigma(mm2), mm3_sigma = mult_sigma(mm3),
@@ -1015,13 +1092,13 @@ int MAW24P(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm4, pos_end = n + mm4;
+	pos = mm4, last_pos = n + mm4;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + 2)][*(y_pos + 3)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + mp2)][*(y_pos + mp3)])) {
 			if (!memcmp(x, y + (pos - mm4), mm4)) {
-				if (pos == pos_end)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -1046,7 +1123,7 @@ int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
 		*V4[SIGMA * (P_MAX * 2 + 1)], V5[SIGMA * P_MAX * 3]; //V5 - shift array; V0, V1, V2, V3, V4 - pointers arrays
 	int D[P_MAX], Dm1[P_MAX], BRm1[SIGMA][SIGMA];
 	unsigned char *y_pos;
-	int pos, pos_end, step, count = 0, int_size = sizeof(int),
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
 		m3 = m * 3, m3m1 = m * 3 - 1, m3m2 = m * 3 - 2,
@@ -1104,13 +1181,13 @@ int MAW32P(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm2, pos_end = n + mm2;
+	pos = mm2, last_pos = n + mm2;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + m2)][*(y_pos + m2p1)])) {
 			if (!memcmp(x, y + (pos - mm2), mm2)) {
-				if (pos == pos_end)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -1138,7 +1215,7 @@ int MAW33P(unsigned char *x, const int m, unsigned char *y, int n) {
 		**V6[SIGMA * (P_MAX * 2 + 1)], *V7[SIGMA * (3 * P_MAX - 1)], V8[SIGMA * P_MAX * 3]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
 	int D[P_MAX], Dm1[P_MAX], Dm2[P_MAX], BRm1[SIGMA][SIGMA], BRm2[SIGMA][SIGMA];
 	unsigned char *y_pos;
-	int pos, pos_end, step, count = 0, int_size = sizeof(int),
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mp2 = m + 2, mm1 = m - 1, mm2 = m - 2, mm3 = m - 3,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2p2 = 2 * m + 2, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2, m2m3 = 2 * m - 3,
 		m3 = m * 3, m3m1 = m * 3 - 1, m3m2 = m * 3 - 2, m3m3 = m * 3 - 3,
@@ -1255,13 +1332,13 @@ int MAW33P(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm3, pos_end = n + mm3;
+	pos = mm3, last_pos = n + mm3;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + 2)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + mp2)][*(y_pos + m2)][*(y_pos + m2p1)][*(y_pos + m2p2)])) {
 			if (!memcmp(x, y + (pos - mm3), mm3)) {
-				if (pos == pos_end)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -1286,7 +1363,7 @@ int MAW42P(unsigned char *x, const int m, unsigned char *y, int n) {
 		**V5[SIGMA * P_MAX * 3], *V6[SIGMA * (P_MAX * 3 + 1)], V7[SIGMA * P_MAX * 4]; //V7 - shift array; V0, V1, V2, V3, V4, V5, V6 - pointers arrays
 	int D[P_MAX], Dm1[P_MAX], BRm1[SIGMA][SIGMA];
 	unsigned char *y_pos;
-	int pos, pos_end, step, count = 0, int_size = sizeof(int),
+	int pos, last_pos, step, count = 0, int_size = sizeof(int),
 		mp1 = m + 1, mm1 = m - 1, mm2 = m - 2,
 		m2 = 2 * m, m2p1 = 2 * m + 1, m2m1 = 2 * m - 1, m2m2 = 2 * m - 2,
 		m3 = m * 3, m3p1 = m * 3 + 1, m3m1 = m * 3 - 1, m3m2 = m * 3 - 2,
@@ -1359,13 +1436,13 @@ int MAW42P(unsigned char *x, const int m, unsigned char *y, int n) {
 	QueryPerformanceCounter(&start_time);
 
 	//Search
-	pos = mm2, pos_end = n + mm2;
+	pos = mm2, last_pos = n + mm2;
 	memcpy(y + n, x, m); //append the text with a stop pattern
 	while (true) {
 		y_pos = y + pos;
 		if (!(step = V0[*y_pos][*(y_pos + 1)][*(y_pos + m)][*(y_pos + mp1)][*(y_pos + m2)][*(y_pos + m2p1)][*(y_pos + m3)][*(y_pos + m3p1)])) {
 			if (!memcmp(x, y + (pos - mm2), mm2)) {
-				if (pos == pos_end)
+				if (pos == last_pos)
 					break;
 				++count;
 			}
@@ -1415,18 +1492,25 @@ void DNA() {
 void testPerformance() {
 	QueryPerformanceFrequency(&freq);
 
-	FILE *f = fopen("output.csv", "wt");
+	std::string filename = "output";
+	filename += char(SIGMA % 10 + '0');
+	if (SIGMA >= 10)
+		filename += char(SIGMA % 10 + '0');
+	if (SIGMA >= 100)
+		filename += char((SIGMA / 10) % 10 + '0');
+	filename += ".csv";
+	FILE *f = fopen(filename.c_str(), "wt");
 	generateRandom();
 	//DNA();
 
 	fprintf(f, "b=%d N=%d ITER=%d\n", SIGMA, N, ITER);
 
-	fprintf(f, "m,MAW22,MAW23,MAW24,MAW32,MAW33,  MAW22,MAW23P,MAW24P,MAW32P,MAW33P,MAW42P,  ,\
-			   	PREP22,PREP23,PREP24,PREP32,PREP33,  PREP22P,PREP23P,PREP24P,PREP32P,PREP33P,PREP42P,  ,\
-				SUM22,SUM23,SUM24,SUM32,SUM33,  SUM22P,SUM23P,SUM24P,SUM32P,SUM33P,SUM42P");
-	for (m = 4; m < 81; m < 10 ? m++ : m += 10) {
-		sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = 0;
-		sum_prep22 = sum_prep23 = sum_prep24 = sum_prep32 = sum_prep33 = 0;
+	fprintf(f, "m,MAW22,MAW23,MAW24,MAW32,MAW33,MAW42,  MAW22,MAW23P,MAW24P,MAW32P,MAW33P,MAW42P,  ,\
+			   	PREP22,PREP23,PREP24,PREP32,PREP33,PREP42,  PREP22P,PREP23P,PREP24P,PREP32P,PREP33P,PREP42P,  ,\
+				SUM22,SUM23,SUM24,SUM32,SUM33,SUM42,  SUM22P,SUM23P,SUM24P,SUM32P,SUM33P,SUM42P");
+	for (m = 2; m < 81; m < 10 ? m++ : m += 10) {
+		sum_maw22 = sum_maw23 = sum_maw24 = sum_maw32 = sum_maw33 = sum_maw42 = 0;
+		sum_prep22 = sum_prep23 = sum_prep24 = sum_prep32 = sum_prep33 = sum_prep42 = 0;
 
 		sum_maw22p = sum_maw23p = sum_maw24p = sum_maw32p = sum_maw33p = sum_maw42p = 0;
 		sum_prep22p = sum_prep23p = sum_prep24p = sum_prep32p = sum_prep33p = sum_prep42p = 0;
@@ -1445,6 +1529,7 @@ void testPerformance() {
 			if (SIGMA < 16) maw24 = MAW24(P, m, T, nm);
 			if (SIGMA < 16) maw32 = MAW32(P, m, T, nm);
 			if (SIGMA < 16) maw33 = MAW33(P, m, T, nm);
+			if (SIGMA < 16) maw42 = MAW42(P, m, T, nm);
 
 			maw22p = MAW22P(P, m, T, nm);
 			maw23p = MAW23P(P, m, T, nm);
@@ -1454,17 +1539,17 @@ void testPerformance() {
 			maw42p = MAW42P(P, m, T, nm);
 		}
 		printf("b=%d m=%d\n", SIGMA, m);
-		printf("%d %d %d %d %d   %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, maw22p, maw23p, maw24p, maw32p, maw33p, maw42p);
-		printf("%7.lld %7.lld %7.lld %7.lld %7.lld   %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld\n\n",
-			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep22p, sum_prep23p, sum_prep24p, sum_prep32p, sum_prep33p, sum_prep42p);
-		fprintf(f, "\n%2.d,  %7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,\
-				   			 %7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,,\
-							 %7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
-			m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33,
+		printf("%d %d %d %d %d %d   %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, maw42, maw22p, maw23p, maw24p, maw32p, maw33p, maw42p);
+		printf("%7.lld %7.lld %7.lld %7.lld %7.lld %7.lld   %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld\n\n",
+			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep42, sum_prep22p, sum_prep23p, sum_prep24p, sum_prep32p, sum_prep33p, sum_prep42p);
+		fprintf(f, "\n%2.d,  %7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,\
+				   			,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,\
+							,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
+			m, sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw42,
 			sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p,
-			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33,
+			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep42,
 			sum_prep22p, sum_prep23p, sum_prep24p, sum_prep32p, sum_prep33p, sum_prep42p,
-			sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33,
+			sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33, sum_maw42 + sum_prep42,
 			sum_maw22p + sum_prep22p, sum_maw23p + sum_prep23p, sum_maw24p + sum_prep24p, sum_maw32p + sum_prep32p, sum_maw33p + sum_prep33p, sum_maw42p + sum_prep42p);
 	}
 	fclose(f);
@@ -1548,19 +1633,27 @@ int testMAW()
 			T[N - m + i] = P[i];
 
 		maw22 = MAW22(P, m, T, N - m);
+		maw23 = MAW23(P, m, T, N - m);
+		maw24 = MAW24(P, m, T, N - m);
+		maw32 = MAW32(P, m, T, N - m);
+		maw33 = MAW33(P, m, T, N - m);
+		maw42 = MAW42(P, m, T, N - m);
+
 		maw22p = MAW22P(P, m, T, N - m);
 		maw23p = MAW23P(P, m, T, N - m);
 		maw24p = MAW24P(P, m, T, N - m);
 		maw32p = MAW32P(P, m, T, N - m);
 		maw33p = MAW33P(P, m, T, N - m);
+		maw42p = MAW42P(P, m, T, N - m);
 
-		if (maw22 != maw22p || maw22 != maw23p || maw22 != maw24p || maw22 != maw32p || maw22 != maw33p)
+		if (maw22 != maw22p || maw22 != maw23 || maw22 != maw24 || maw22 != maw32 || maw22 != maw33 || maw22 != maw42
+			|| maw22 != maw23p || maw22 != maw24p || maw22 != maw32p || maw22 != maw33p || maw22 != maw42p)
 		{
 			for (int i = 0; i < m; i++)
 				cout << char(P[i] + '0');
 			cout << " " << m << endl;
 
-			cout << "amount " << maw22 << " " << maw22p << " " << maw23p << " " << maw24p << " " << maw32p << " " << maw33p << endl;
+			printf("%d %d %d %d %d %d   %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, maw42, maw22p, maw23p, maw24p, maw32p, maw33p, maw42p);
 		}
 	}
 
@@ -1603,6 +1696,12 @@ int simplestTest()
 		//P[0] = 2; P[1] = 1; P[2] = 1; P[3] = 2; P[4] = 2; P[5] = 1; P[6] = 1;
 
 		maw22 = MAW22(P, m, T, N - m);
+		maw23 = MAW23(P, m, T, N - m);
+		maw24 = MAW24(P, m, T, N - m);
+		maw32 = MAW32(P, m, T, N - m);
+		maw33 = MAW33(P, m, T, N - m);
+		maw42 = MAW42(P, m, T, N - m);
+
 		maw22p = MAW22P(P, m, T, N - m);
 		maw23p = MAW23P(P, m, T, N - m);
 		maw24p = MAW24P(P, m, T, N - m);
@@ -1614,16 +1713,15 @@ int simplestTest()
 			cout << char(P[i] + '0');
 		cout << " " << m << endl;
 
-		cout << "amount " << maw22 << " " << maw22p << " " << maw23p << " " << maw24p << " " << maw32p << " " << maw33p << " " << maw42p << endl;
-
-		cout << "amount " << maw22 << "	" << maw22p << "	" << maw23p << "	" << maw24p << "	" << maw32p << "	" << maw33p << "	" << maw42p << endl << endl;
-		cout << "algo   " << sum_maw22 << "	" << sum_maw22p << "	" << sum_maw23p << "	" << sum_maw24p << "	" << sum_maw32p << "	" << sum_maw33p << "	" << sum_maw42p << endl;
-		cout << "prep   " << sum_prep22 << "	" << sum_prep22p << "	" << sum_prep23p << "	" << sum_prep24p << "	" << sum_prep32p << "	" << sum_prep33p << "	" << sum_prep42p << endl;
-		cout << "sum    " << sum_maw22 + sum_prep22 << "	" << sum_maw22p + sum_prep22p << "	" << sum_maw23p + sum_prep23p << "	" <<
-			sum_maw24p + sum_prep24p << "	" << sum_maw32p + sum_prep32p << "	" << sum_maw33p + sum_prep33p << "	" << sum_maw42p + sum_prep42p << endl;
-
-		cout << endl << maw22c << " " << maw22pc << endl;
-
+		printf("count	%d %d %d %d %d %d   %d %d %d %d %d %d\n\n", maw22, maw23, maw24, maw32, maw33, maw42, maw22p, maw23p, maw24p, maw32p, maw33p, maw42p);
+		printf("prep	%7.lld %7.lld %7.lld %7.lld %7.lld %7.lld   %7.lld %7.lld %7.lld %7.lld %7.lld %7.lld\n\n",
+			sum_prep22, sum_prep23, sum_prep24, sum_prep32, sum_prep33, sum_prep42, sum_prep22p, sum_prep23p, sum_prep24p, sum_prep32p, sum_prep33p, sum_prep42p);
+		printf("algo	%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld\n",
+			sum_maw22, sum_maw23, sum_maw24, sum_maw32, sum_maw33, sum_maw42,
+			sum_maw22p, sum_maw23p, sum_maw24p, sum_maw32p, sum_maw33p, sum_maw42p);
+		printf("sum		%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld,%7.lld",
+			sum_maw22 + sum_prep22, sum_maw23 + sum_prep23, sum_maw24 + sum_prep24, sum_maw32 + sum_prep32, sum_maw33 + sum_prep33, sum_maw42 + sum_prep42,
+			sum_maw22p + sum_prep22p, sum_maw23p + sum_prep23p, sum_maw24p + sum_prep24p, sum_maw32p + sum_prep32p, sum_maw33p + sum_prep33p, sum_maw42p + sum_prep42p);
 	}
 
 	system("pause");
